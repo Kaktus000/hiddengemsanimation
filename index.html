@@ -2,48 +2,61 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <title>Hidden Gems Video Player - Sync Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hidden Gems Video Player - Stable Sync</title>
     <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://unpkg.com/omggif@1.0.10/omggif.js"></script>
     <style>
         :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --accent: #238636; --text: #c9d1d9; }
-        body { background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; padding: 20px; display: flex; justify-content: center; }
+        body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; padding: 20px; display: flex; justify-content: center; margin: 0; }
         .container { max-width: 600px; width: 100%; }
-        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 15px; }
-        #dropZone { border: 2px dashed var(--border); padding: 40px; text-align: center; cursor: pointer; border-radius: 12px; transition: 0.2s; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        #dropZone { border: 2px dashed var(--border); padding: 40px; text-align: center; cursor: pointer; border-radius: 12px; transition: 0.2s; background: rgba(255,255,255,0.02); }
         #dropZone:hover { border-color: var(--accent); background: rgba(35, 134, 54, 0.05); }
-        .btn { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn:hover:not(:disabled) { background: #2ea043; }
         .btn:disabled { background: #21262d; opacity: 0.5; cursor: not-allowed; }
-        input[type="number"] { background: #0d1117; border: 1px solid var(--border); color: white; padding: 5px; width: 60px; border-radius: 4px; }
-        #preview { width: 100%; height: auto; image-rendering: pixelated; border: 1px solid #000; background: #000; margin-top: 10px; border-radius: 4px; }
-        .status-text { font-family: monospace; font-size: 0.85rem; margin-top: 10px; color: #8b949e; }
+        input[type="number"] { background: #0d1117; border: 1px solid var(--border); color: white; padding: 6px; width: 70px; border-radius: 4px; outline: none; }
+        #preview { width: 100%; height: auto; image-rendering: pixelated; border: 1px solid #000; background: #000; margin-top: 10px; border-radius: 4px; display: block; }
+        .status-text { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; margin-top: 10px; color: #8b949e; background: #0d1117; padding: 8px; border-radius: 4px; min-height: 1.2em; }
+        .controls-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        label { display: block; font-size: 0.8rem; color: #8b949e; margin-bottom: 4px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="card">
-        <h2 style="margin-top:0; color: #f0f6fc;">Hidden Gems Animation Gen</h2>
-        <div style="display: flex; gap: 20px; margin-bottom: 20px;">
-            <label>Breite: <input type="number" id="width" value="49"></label>
-            <label>Höhe: <input type="number" id="height" value="29"></label>
-            <label>Max F: <input type="number" id="maxFrames" value="0"></label>
+        <h2 style="margin-top:0; color: #f0f6fc; font-weight: 600;">Hidden Gems Converter</h2>
+        <div class="controls-grid">
+            <div>
+                <label>Breite (px)</label>
+                <input type="number" id="width" value="49">
+            </div>
+            <div>
+                <label>Höhe (px)</label>
+                <input type="number" id="height" value="29">
+            </div>
+            <div>
+                <label>Max Frames</label>
+                <input type="number" id="maxFrames" value="100">
+            </div>
         </div>
         <div id="dropZone">
-            <strong>Datei hierher ziehen</strong><br>
-            <span style="font-size: 0.8rem; color: #8b949e;">Video oder GIF (automatische Erkennung)</span>
+            <strong style="color: #f0f6fc;">Datei hierher ziehen</strong><br>
+            <span style="font-size: 0.8rem; color: #8b949e;">MP4, WebM oder GIF</span>
         </div>
-        <input type="file" id="fileInput" hidden>
+        <input type="file" id="fileInput" accept="video/*,image/gif" hidden>
     </div>
 
     <div class="card">
-        <div id="status" class="status-text">Bereit zur Verarbeitung.</div>
+        <div id="status" class="status-text">Bereit.</div>
         <canvas id="preview"></canvas>
         <button id="dlBtn" class="btn" style="margin-top:20px;" disabled>BUNDLE DOWNLOAD (.ZIP)</button>
     </div>
 </div>
 
-<video id="vCore" hidden muted playsinline></video>
+<video id="vCore" hidden muted playsinline crossorigin="anonymous"></video>
 
 <script>
     const $ = id => document.getElementById(id);
@@ -52,15 +65,15 @@
     $('dropZone').onclick = () => $('fileInput').click();
     $('fileInput').onchange = e => handle(e.target.files[0]);
 
-    // 1:1 PIL NEAREST LOGIK (Mathematisch exakt)
+    // Manuelles Nearest-Neighbor Resizing (Präzise Pixelkontrolle)
     function manualResize(srcData, sw, sh, dw, dh) {
         const dstData = new Uint8ClampedArray(dw * dh * 4);
         const xr = sw / dw;
         const yr = sh / dh;
         for (let y = 0; y < dh; y++) {
+            const sy = Math.floor(y * yr);
             for (let x = 0; x < dw; x++) {
                 const sx = Math.floor(x * xr);
-                const sy = Math.floor(y * yr);
                 const srcPos = (sy * sw + sx) * 4;
                 const dstPos = (y * dw + x) * 4;
                 dstData[dstPos]   = srcData[srcPos];
@@ -72,67 +85,103 @@
         return dstData;
     }
 
-    // DIE API: Wartet bis der Browser den Frame wirklich "präsentiert"
-    function waitForFrame(video) {
+    // Präzises Warten auf Video-Frame-Dekodierung
+    function requestFrame(video) {
         return new Promise((resolve) => {
             if ('requestVideoFrameCallback' in video) {
-                video.requestVideoFrameCallback((now, metadata) => {
-                    resolve();
-                });
+                video.requestVideoFrameCallback(() => resolve());
             } else {
-                // Fallback für Browser ohne rVFC (z.B. altes Safari)
-                video.onseeked = () => requestAnimationFrame(() => resolve());
+                const onSeeked = () => {
+                    video.removeEventListener('seeked', onSeeked);
+                    requestAnimationFrame(() => resolve());
+                };
+                video.addEventListener('seeked', onSeeked);
             }
         });
     }
 
     async function handle(file) {
         if (!file) return;
-        const w = parseInt($('width').value);
-        const h = parseInt($('height').value);
+        const w = parseInt($('width').value) || 49;
+        const h = parseInt($('height').value) || 29;
         const max = parseInt($('maxFrames').value) || 9999;
         const frames = {};
         
-        $('status').innerText = "Status: Analysiere Datei...";
+        $('dlBtn').disabled = true;
+        $('status').innerText = "Status: Initialisiere...";
         
         if (file.type === 'image/gif') {
-            const gr = new GifReader(new Uint8Array(await file.arrayBuffer()));
-            const count = Math.min(gr.numFrames(), max);
-            for(let i=0; i<count; i++) {
-                const rgba = new Uint8ClampedArray(gr.width * gr.height * 4);
-                gr.decodeAndBlitFrameRGBA(i, rgba);
-                const resized = manualResize(rgba, gr.width, gr.height, w, h);
-                frames[`frame${i+1}`] = pixelsToHex(resized, w, h);
-                drawPreview(resized, w, h);
-                $('status').innerText = `Status: GIF Frame ${i+1}/${count}`;
+            try {
+                const buffer = await file.arrayBuffer();
+                const gr = new GifReader(new Uint8Array(buffer));
+                const count = Math.min(gr.numFrames(), max);
+                
+                // Buffer für GIF Decoding (schwarze Pixel Fix durch sauberen Buffer)
+                let fullFrameBuffer = new Uint8ClampedArray(gr.width * gr.height * 4);
+
+                for(let i=0; i<count; i++) {
+                    gr.decodeAndBlitFrameRGBA(i, fullFrameBuffer);
+                    const resized = manualResize(fullFrameBuffer, gr.width, gr.height, w, h);
+                    frames[`frame${i+1}`] = pixelsToHex(resized, w, h);
+                    drawPreview(resized, w, h);
+                    $('status').innerText = `Status: GIF extrahiere ${i+1}/${count}`;
+                    
+                    // Verhindert UI-Freeze
+                    if(i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+                }
+            } catch(e) {
+                $('status').innerText = "Fehler: Korruptes GIF?";
+                console.error(e);
+                return;
             }
         } else {
             const v = $('vCore');
-            v.src = URL.createObjectURL(file);
+            const url = URL.createObjectURL(file);
+            v.src = url;
+            
             await new Promise(r => v.onloadedmetadata = r);
-            const fps = 10;
-            const count = Math.min(Math.floor(v.duration * fps), max);
+            
+            const fps = 10; // Ziel-FPS für den Bot
+            const duration = v.duration;
+            const count = Math.min(Math.floor(duration * fps), max);
+            
             const cap = document.createElement('canvas');
-            cap.width = v.videoWidth; cap.height = v.videoHeight;
-            const ctx = cap.getContext('2d', { alpha: false });
+            cap.width = v.videoWidth; 
+            cap.height = v.videoHeight;
+            // willReadFrequently optimiert getImageData Performance massiv
+            const ctx = cap.getContext('2d', { alpha: false, willReadFrequently: true });
 
             for(let i=0; i<count; i++) {
-                v.currentTime = i / fps;
+                const targetTime = i / fps;
+                v.currentTime = targetTime;
                 
-                // Hier warten wir auf die API statt auf einen festen Timeout
-                await waitForFrame(v);
+                await requestFrame(v);
                 
-                ctx.drawImage(v, 0, 0);
+                ctx.drawImage(v, 0, 0, cap.width, cap.height);
                 const raw = ctx.getImageData(0, 0, cap.width, cap.height).data;
                 const resized = manualResize(raw, cap.width, cap.height, w, h);
+                
                 frames[`frame${i+1}`] = pixelsToHex(resized, w, h);
                 drawPreview(resized, w, h);
-                $('status').innerText = `Status: Video Frame ${i+1}/${count}`;
+                $('status').innerText = `Status: Video extrahiere ${i+1}/${count}`;
+                
+                // Kleiner Yield für den Main Thread gegen Lags
+                await new Promise(r => setTimeout(r, 0));
             }
+            URL.revokeObjectURL(url);
         }
 
-        finalJson = { meta: { x_size: w, y_size: h, frame_count: Object.keys(frames).length }, frames };
-        $('status').innerText = "Status: ✅ Verarbeitung abgeschlossen!";
+        finalJson = { 
+            meta: { 
+                x_size: w, 
+                y_size: h, 
+                frame_count: Object.keys(frames).length,
+                generated_at: new Date().toISOString()
+            }, 
+            frames 
+        };
+        
+        $('status').innerText = `✅ Fertig! ${Object.keys(frames).length} Frames bereit.`;
         $('dlBtn').disabled = false;
     }
 
@@ -142,6 +191,7 @@
             const row = [];
             for (let x = 0; x < w; x++) {
                 const i = (y * w + x) * 4;
+                // Fast-Path Hex Konvertierung
                 const r = data[i].toString(16).padStart(2, '0');
                 const g = data[i+1].toString(16).padStart(2, '0');
                 const b = data[i+2].toString(16).padStart(2, '0');
@@ -153,14 +203,16 @@
     }
 
     function drawPreview(data, w, h) {
-        const pC = $('preview'); pC.width = w; pC.height = h;
+        const pC = $('preview'); 
+        pC.width = w; 
+        pC.height = h;
         const pX = pC.getContext('2d');
         pX.putImageData(new ImageData(new Uint8ClampedArray(data), w, h), 0, 0);
     }
 
     $('dlBtn').onclick = async () => {
         const zip = new JSZip();
-        zip.file("animation.json", JSON.stringify(finalJson, null, 4));
+        zip.file("animation.json", JSON.stringify(finalJson, null, 2));
         
         const assets = ['bot.py', 'bot.yaml', 'start.bat', 'start.sh'];
         for (const a of assets) {
@@ -168,18 +220,16 @@
                 const res = await fetch(a);
                 if (res.ok) {
                     const blob = await res.blob();
-                    // Perms Fix: 0755 für Shell-Skripte (Oktal)
                     const mode = a.endsWith('.sh') ? 0o755 : 0o644;
                     zip.file(a, blob, { unixPermissions: mode });
                 }
-            } catch(e) { console.error(e); }
+            } catch(e) {}
         }
 
-        // Platform UNIX ist wichtig, damit die Permissions im ZIP-Header landen
         const content = await zip.generateAsync({ type: "blob", platform: "UNIX" });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(content);
-        link.download = "bot_bundle.zip";
+        link.download = `animation_bundle_${Date.now()}.zip`;
         link.click();
     };
 </script>
