@@ -4,93 +4,163 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Animation Bot Exporter</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.0/lucide.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <style>
-        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
-        .processing { animation: pulse-soft 2s infinite; }
-        body { background-color: #0f172a; color: #f8fafc; }
-        .card { background: #1e293b; border: 1px solid #334155; }
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --border: #334155;
+            --accent: #3b82f6;
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container { max-width: 800px; width: 100%; }
+        header { text-align: center; margin-bottom: 40px; }
+        h1 { color: var(--accent); margin-bottom: 8px; font-size: 2.5rem; }
+        
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            padding: 24px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        label { display: block; font-size: 0.875rem; color: var(--text-muted); margin-bottom: 8px; }
+        
+        input[type="number"] {
+            width: 100%;
+            background: #0f172a;
+            border: 1px solid var(--border);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        /* Drag & Drop Area */
+        #dropZone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+        }
+
+        #dropZone.dragover {
+            border-color: var(--accent);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        /* Progress Bar */
+        .progress-container { margin-top: 20px; display: none; }
+        .progress-bar-bg { background: #0f172a; height: 8px; border-radius: 4px; overflow: hidden; }
+        #progressBar { background: var(--accent); height: 100%; width: 0%; transition: width 0.1s; }
+
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 1rem;
+            transition: transform 0.1s, background 0.2s;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+        .btn:active:not(.btn-disabled) { transform: scale(0.98); }
+
+        canvas { background: black; display: block; max-width: 100%; height: auto; image-rendering: pixelated; }
+        .hidden { display: none; }
     </style>
 </head>
-<body class="p-4 md:p-8 font-sans">
+<body>
 
-    <div class="max-w-4xl mx-auto">
-        <header class="mb-10 text-center">
-            <h1 class="text-4xl font-bold tracking-tight text-blue-400 mb-2">Animation Exporter</h1>
-            <p class="text-slate-400">Konvertiere Videos in JSON-Bots für GitHub Pages</p>
+    <div class="container">
+        <header>
+            <h1>Animation Bot</h1>
+            <p style="color: var(--text-muted)">Drag & Drop Video Encoder</p>
         </header>
 
-        <div class="grid grid-cols-1 gap-8">
+        <div class="card">
+            <div class="grid">
+                <div>
+                    <label>Breite (X)</label>
+                    <input type="number" id="width" value="29">
+                </div>
+                <div>
+                    <label>Höhe (Y)</label>
+                    <input type="number" id="height" value="19">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div id="dropZone">
+                <i data-lucide="upload-cloud" size="48"></i>
+                <p>Zieh dein Video (.mp4) oder animation.json hierher</p>
+                <span style="font-size: 0.8rem; color: var(--text-muted)">oder klicken zum Auswählen</span>
+                <input type="file" id="fileInput" class="hidden" accept="video/*,.json">
+            </div>
+
+            <div id="progressContainer" class="progress-container">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span id="statusText">Bereit...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div id="progressBar"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div id="previewArea" class="hidden">
+                <p style="color: #4ade80; margin-bottom: 12px;">✓ Datei bereit zum Export</p>
+                <canvas id="previewCanvas" style="margin: 0 auto 20px auto;"></canvas>
+            </div>
             
-            <section class="card rounded-2xl p-6 shadow-xl">
-                <div class="flex items-center mb-4 space-x-2">
-                    <i data-lucide="settings" class="text-blue-400"></i>
-                    <h2 class="text-xl font-semibold">1. Spielfeld Konfiguration</h2>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-400 mb-1">Breite (x_size)</label>
-                        <input type="number" id="width" value="29" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-400 mb-1">Höhe (y_size)</label>
-                        <input type="number" id="height" value="19" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none">
-                    </div>
-                </div>
-            </section>
-
-            <section class="card rounded-2xl p-6 shadow-xl">
-                <div class="flex items-center mb-4 space-x-2">
-                    <i data-lucide="video" class="text-blue-400"></i>
-                    <h2 class="text-xl font-semibold">2. Video / JSON Import</h2>
-                </div>
-                
-                <div class="flex flex-col items-center justify-center border-2 border-dashed border-slate-700 rounded-xl p-8 hover:border-blue-500 transition-colors cursor-pointer" onclick="document.getElementById('fileInput').click()">
-                    <i data-lucide="upload-cloud" class="w-12 h-12 text-slate-500 mb-3"></i>
-                    <p class="text-slate-300">Video (.mp4, .webm) oder animation.json wählen</p>
-                    <input type="file" id="fileInput" class="hidden" accept="video/*,.json">
-                </div>
-
-                <div id="progressContainer" class="hidden mt-6">
-                    <div class="flex justify-between mb-1 text-sm">
-                        <span id="statusText">Verarbeite Frames...</span>
-                        <span id="progressPercent">0%</span>
-                    </div>
-                    <div class="w-full bg-slate-900 rounded-full h-2">
-                        <div id="progressBar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="card rounded-2xl p-6 shadow-xl">
-                <div class="flex items-center mb-6 space-x-2">
-                    <i data-lucide="package" class="text-blue-400"></i>
-                    <h2 class="text-xl font-semibold">3. Finaler Export</h2>
-                </div>
-                
-                <div id="previewArea" class="hidden mb-6 p-4 bg-slate-900 rounded-lg border border-slate-800">
-                    <p class="text-sm text-green-400 mb-2 font-mono">✓ Datei bereit: <span id="readyFileName">-</span></p>
-                    <div id="canvasContainer" class="flex justify-center bg-black overflow-hidden rounded border border-slate-700">
-                        <canvas id="previewCanvas" class="max-w-full"></canvas>
-                    </div>
-                </div>
-
-                <button id="downloadBtn" disabled class="w-full bg-slate-700 text-slate-400 font-bold py-4 px-6 rounded-xl flex items-center justify-center space-x-2 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                    <i data-lucide="download"></i>
-                    <span>BOT-BUNDLE HERUNTERLADEN (.ZIP)</span>
-                </button>
-            </section>
+            <button id="downloadBtn" class="btn btn-disabled" disabled>
+                <i data-lucide="download"></i>
+                ZIP BUNDLE HERUNTERLADEN
+            </button>
         </div>
     </div>
 
     <video id="processVideo" class="hidden"></video>
 
     <script>
-        // Init Lucide Icons
+        // Initialisiere Icons
         lucide.createIcons();
 
+        const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const downloadBtn = document.getElementById('downloadBtn');
         const progressBar = document.getElementById('progressBar');
@@ -98,57 +168,70 @@
         const progressContainer = document.getElementById('progressContainer');
         const statusText = document.getElementById('statusText');
         const previewArea = document.getElementById('previewArea');
-        const readyFileName = document.getElementById('readyFileName');
         const previewCanvas = document.getElementById('previewCanvas');
         const ctx = previewCanvas.getContext('2d');
 
         let generatedJson = null;
 
-        fileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+        // --- Drag & Drop Handler ---
+        dropZone.addEventListener('click', () => fileInput.click());
 
-            if (file.type === "application/json" || file.name.endsWith('.json')) {
-                handleJson(file);
-            } else {
-                handleVideo(file);
-            }
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
         });
 
-        // --- JSON LOGIC ---
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) handleFile(e.target.files[0]);
+        });
+
+        function handleFile(file) {
+            if (file.name.endsWith('.json')) {
+                handleJson(file);
+            } else if (file.type.startsWith('video/')) {
+                handleVideo(file);
+            } else {
+                alert("Bitte nur Videos oder .json Dateien hochladen.");
+            }
+        }
+
+        // --- JSON Logic ---
         function handleJson(file) {
             const reader = new FileReader();
             reader.onload = (e) => {
                 try {
                     const data = JSON.parse(e.target.result);
-                    if (!data.meta || !data.frames) throw new Error("Ungültiges Format");
                     generatedJson = data;
-                    showReadyState(file.name);
                     renderPreviewFrame(data);
-                } catch (err) {
-                    alert("Fehler beim Laden der JSON: " + err.message);
-                }
+                    enableDownload();
+                } catch (err) { alert("Fehler in JSON-Struktur"); }
             };
             reader.readAsText(file);
         }
 
-        // --- VIDEO LOGIC (The core Encoder) ---
+        // --- Video Logic (The Encoder) ---
         async function handleVideo(file) {
             const width = parseInt(document.getElementById('width').value);
             const height = parseInt(document.getElementById('height').value);
             const video = document.getElementById('processVideo');
             
-            progressContainer.classList.remove('hidden');
-            downloadBtn.disabled = true;
-
+            progressContainer.style.display = 'block';
+            statusText.innerText = "Lade Video...";
+            
             const url = URL.createObjectURL(file);
             video.src = url;
 
             video.onloadedmetadata = async () => {
-                const duration = video.duration;
-                const fps = 10; // Wir sampeln mit 10 FPS
-                const totalFrames = Math.floor(duration * fps);
-                
+                const fps = 10; 
+                const totalFrames = Math.floor(video.duration * fps);
                 const frames = {};
                 previewCanvas.width = width;
                 previewCanvas.height = height;
@@ -168,89 +251,70 @@
                             const r = imgData[idx].toString(16).padStart(2, '0');
                             const g = imgData[idx+1].toString(16).padStart(2, '0');
                             const b = imgData[idx+2].toString(16).padStart(2, '0');
-                            const a = imgData[idx+3];
-                            
-                            row.push(a === 0 ? "#000000" : `#${r}${g}${b}`);
+                            row.push(`#${r}${g}${b}`);
                         }
                         frameData[`row${y + 1}`] = row;
                     }
                     frames[`frame${i + 1}`] = frameData;
 
-                    // Progress Update
                     const pct = Math.round((i / totalFrames) * 100);
                     progressBar.style.width = `${pct}%`;
                     progressPercent.innerText = `${pct}%`;
+                    statusText.innerText = `Frame ${i} von ${totalFrames} extrahiert...`;
                 }
 
                 generatedJson = {
                     meta: { x_size: width, y_size: height, frame_count: totalFrames },
                     frames: frames
                 };
-
-                showReadyState(file.name);
+                
+                statusText.innerText = "Fertig!";
+                enableDownload();
                 URL.revokeObjectURL(url);
             };
         }
 
-        function showReadyState(filename) {
+        function enableDownload() {
             previewArea.classList.remove('hidden');
-            readyFileName.innerText = filename;
             downloadBtn.disabled = false;
-            downloadBtn.classList.replace('bg-slate-700', 'bg-blue-600');
-            downloadBtn.classList.replace('text-slate-400', 'text-white');
-            statusText.innerText = "Verarbeitung abgeschlossen!";
+            downloadBtn.classList.remove('btn-disabled');
+            downloadBtn.classList.add('btn-primary');
         }
 
         function renderPreviewFrame(data) {
-            const meta = data.meta;
-            previewCanvas.width = meta.x_size;
-            previewCanvas.height = meta.y_size;
-            const firstFrame = data.frames.frame1;
-            
-            for(let y=0; y < meta.y_size; y++) {
-                const row = firstFrame[`row${y+1}`];
-                row.forEach((color, x) => {
-                    ctx.fillStyle = color;
+            previewCanvas.width = data.meta.x_size;
+            previewCanvas.height = data.meta.y_size;
+            const frame = data.frames.frame1;
+            for(let y=0; y<data.meta.y_size; y++) {
+                frame[`row${y+1}`].forEach((c, x) => {
+                    ctx.fillStyle = c;
                     ctx.fillRect(x, y, 1, 1);
                 });
             }
         }
 
-        // --- ZIP EXPORT ---
+        // --- ZIP Export ---
         downloadBtn.addEventListener('click', async () => {
             if (!generatedJson) return;
-
-            downloadBtn.innerHTML = `<i data-lucide="loader-2" class="animate-spin"></i> <span>Erstelle ZIP...</span>`;
-            lucide.createIcons();
-
             const zip = new JSZip();
-
-            // 1. Die generierte Animation
             zip.file("animation.json", JSON.stringify(generatedJson, null, 4));
 
-            // 2. Die Bot-Dateien vom Server/Repo laden
-            const assets = ['bot.py', 'bot.yaml', 'start.bat', 'start.sh'];
-            
-            try {
-                for (const asset of assets) {
-                    const response = await fetch(asset);
-                    if (response.ok) {
-                        const blob = await response.blob();
-                        zip.file(asset, blob);
-                    }
-                }
+            const files = ['bot.py', 'bot.yaml', 'start.bat', 'start.sh'];
+            statusText.innerText = "Sammle Dateien...";
 
-                const content = await zip.generateAsync({ type: "blob" });
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(content);
-                link.download = "bot_bundle.zip";
-                link.click();
-            } catch (err) {
-                alert("Fehler beim Abrufen der Bot-Dateien. Stelle sicher, dass sie im Hauptverzeichnis liegen.");
+            for (const f of files) {
+                try {
+                    const res = await fetch(f);
+                    if (res.ok) zip.file(f, await res.blob());
+                } catch (e) { console.error("Datei fehlte im Repo:", f); }
             }
 
-            downloadBtn.innerHTML = `<i data-lucide="download"></i> <span>BOT-BUNDLE HERUNTERLADEN (.ZIP)</span>`;
-            lucide.createIcons();
+            const content = await zip.generateAsync({type:"blob"});
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(content);
+            a.download = "bot_bundle.zip";
+            a.click();
+            statusText.innerText = "Download gestartet!";
         });
     </script>
 </body>
