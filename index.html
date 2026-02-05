@@ -3,31 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hidden Gems Video Player - Stable Sync</title>
+    <title>Hidden Gems Video Player</title>
     <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://unpkg.com/omggif@1.0.10/omggif.js"></script>
     <style>
-        :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --accent: #238636; --text: #c9d1d9; }
-        body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; padding: 20px; display: flex; justify-content: center; margin: 0; }
-        .container { max-width: 600px; width: 100%; }
-        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-        #dropZone { border: 2px dashed var(--border); padding: 40px; text-align: center; cursor: pointer; border-radius: 12px; transition: 0.2s; background: rgba(255,255,255,0.02); }
-        #dropZone:hover { border-color: var(--accent); background: rgba(35, 134, 54, 0.05); }
-        .btn { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn:hover:not(:disabled) { background: #2ea043; }
+        :root { 
+            --bg: #0d1117; 
+            --card: #161b22; 
+            --border: #30363d; 
+            --accent: #238636; 
+            --accent-hover: #2ea043;
+            --text: #c9d1d9; 
+            --text-bright: #f0f6fc;
+            --text-muted: #8b949e;
+        }
+        
+        body { 
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column;
+            align-items: center;
+            margin: 0; 
+        }
+
+        .hero-video {
+            width: 100%;
+            max-width: 800px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            background: #000;
+        }
+
+        .container { max-width: 650px; width: 100%; }
+        
+        .card { 
+            background: var(--card); 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
+            padding: 24px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3); 
+        }
+
+        h1 { margin: 0 0 8px 0; color: var(--text-bright); font-size: 1.5rem; text-align: center; }
+        .subtitle { color: var(--text-muted); font-size: 0.9rem; text-align: center; margin-bottom: 24px; line-height: 1.4; }
+
+        #dropZone { 
+            border: 2px dashed var(--border); 
+            padding: 40px; 
+            text-align: center; 
+            cursor: pointer; 
+            border-radius: 12px; 
+            transition: all 0.2s ease; 
+            background: rgba(255,255,255,0.02); 
+        }
+        
+        #dropZone:hover { 
+            border-color: var(--accent); 
+            background: rgba(35, 134, 54, 0.05); 
+            transform: translateY(-2px);
+        }
+
+        .controls-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr 1fr; 
+            gap: 15px; 
+            margin-bottom: 20px; 
+        }
+
+        label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; text-transform: uppercase; }
+        
+        input[type="number"] { 
+            background: #0d1117; 
+            border: 1px solid var(--border); 
+            color: white; 
+            padding: 10px; 
+            width: 100%; 
+            border-radius: 6px; 
+            outline: none; 
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        
+        input[type="number"]:focus { border-color: var(--accent); }
+
+        .btn { 
+            width: 100%; 
+            padding: 16px; 
+            background: var(--accent); 
+            color: white; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn:active:not(:disabled) { transform: translateY(0); }
         .btn:disabled { background: #21262d; opacity: 0.5; cursor: not-allowed; }
-        input[type="number"] { background: #0d1117; border: 1px solid var(--border); color: white; padding: 6px; width: 70px; border-radius: 4px; outline: none; }
-        #preview { width: 100%; height: auto; image-rendering: pixelated; border: 1px solid #000; background: #000; margin-top: 10px; border-radius: 4px; display: block; }
-        .status-text { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 0.85rem; margin-top: 10px; color: #8b949e; background: #0d1117; padding: 8px; border-radius: 4px; min-height: 1.2em; }
-        .controls-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        label { display: block; font-size: 0.8rem; color: #8b949e; margin-bottom: 4px; }
+
+        #preview { 
+            width: 100%; 
+            height: auto; 
+            image-rendering: pixelated; 
+            border: 2px solid #000; 
+            background: #000; 
+            margin-top: 15px; 
+            border-radius: 8px; 
+            display: block; 
+        }
+
+        .status-text { 
+            font-family: 'SFMono-Regular', Consolas, monospace; 
+            font-size: 0.8rem; 
+            margin-top: 15px; 
+            color: #8b949e; 
+            background: #0d1117; 
+            padding: 12px; 
+            border-radius: 6px; 
+            border-left: 3px solid var(--accent);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: rgba(35, 134, 54, 0.2);
+            color: #3fb950;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
 
+<video class="hero-video" autoplay muted loop playsinline>
+    <source src="preview.mp4" type="video/mp4">
+    <!-- Fallback falls Video nicht lädt -->
+</video>
+
 <div class="container">
     <div class="card">
-        <h2 style="margin-top:0; color: #f0f6fc; font-weight: 600;">Hidden Gems Converter</h2>
+        <div style="text-align: center;">
+            <span class="badge">Hidden Gems Runner Tool</span>
+        </div>
+        <h1>Hidden Gems Video Player</h1>
+        <p class="subtitle">Dieses Tool konvertiert Videos in das JSON-Format, um den Hidden Gems Runner als vollwertigen Videoplayer zu nutzen.</p>
+        
         <div class="controls-grid">
             <div>
                 <label>Breite (px)</label>
@@ -39,20 +171,25 @@
             </div>
             <div>
                 <label>Max Frames</label>
-                <input type="number" id="maxFrames" value="100">
+                <input type="number" id="maxFrames" value="250">
             </div>
         </div>
+
         <div id="dropZone">
-            <strong style="color: #f0f6fc;">Datei hierher ziehen</strong><br>
-            <span style="font-size: 0.8rem; color: #8b949e;">MP4, WebM oder GIF</span>
+            <svg style="width: 32px; height: 32px; color: var(--text-muted); margin-bottom: 12px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+            </svg><br>
+            <strong style="color: var(--text-bright);">Video oder GIF hierher ziehen</strong><br>
+            <span style="font-size: 0.8rem; color: var(--text-muted);">Automatische Optimierung & Sync</span>
         </div>
         <input type="file" id="fileInput" accept="video/*,image/gif" hidden>
     </div>
 
     <div class="card">
-        <div id="status" class="status-text">Bereit.</div>
+        <label>Live Konvertierung & Preview</label>
+        <div id="status" class="status-text">Bereit zum Import...</div>
         <canvas id="preview"></canvas>
-        <button id="dlBtn" class="btn" style="margin-top:20px;" disabled>BUNDLE DOWNLOAD (.ZIP)</button>
+        <button id="dlBtn" class="btn" style="margin-top:24px;" disabled>BUNDLE DOWNLOAD (.ZIP)</button>
     </div>
 </div>
 
@@ -65,7 +202,6 @@
     $('dropZone').onclick = () => $('fileInput').click();
     $('fileInput').onchange = e => handle(e.target.files[0]);
 
-    // Manuelles Nearest-Neighbor Resizing (Präzise Pixelkontrolle)
     function manualResize(srcData, sw, sh, dw, dh) {
         const dstData = new Uint8ClampedArray(dw * dh * 4);
         const xr = sw / dw;
@@ -85,7 +221,6 @@
         return dstData;
     }
 
-    // Präzises Warten auf Video-Frame-Dekodierung
     function requestFrame(video) {
         return new Promise((resolve) => {
             if ('requestVideoFrameCallback' in video) {
@@ -108,15 +243,13 @@
         const frames = {};
         
         $('dlBtn').disabled = true;
-        $('status').innerText = "Status: Initialisiere...";
+        $('status').innerText = "Status: Initialisiere Engine...";
         
         if (file.type === 'image/gif') {
             try {
                 const buffer = await file.arrayBuffer();
                 const gr = new GifReader(new Uint8Array(buffer));
                 const count = Math.min(gr.numFrames(), max);
-                
-                // Buffer für GIF Decoding (schwarze Pixel Fix durch sauberen Buffer)
                 let fullFrameBuffer = new Uint8ClampedArray(gr.width * gr.height * 4);
 
                 for(let i=0; i<count; i++) {
@@ -124,48 +257,35 @@
                     const resized = manualResize(fullFrameBuffer, gr.width, gr.height, w, h);
                     frames[`frame${i+1}`] = pixelsToHex(resized, w, h);
                     drawPreview(resized, w, h);
-                    $('status').innerText = `Status: GIF extrahiere ${i+1}/${count}`;
-                    
-                    // Verhindert UI-Freeze
+                    $('status').innerText = `Prozessiervorgang: GIF Frame ${i+1} von ${count}`;
                     if(i % 5 === 0) await new Promise(r => setTimeout(r, 0));
                 }
             } catch(e) {
-                $('status').innerText = "Fehler: Korruptes GIF?";
-                console.error(e);
+                $('status').innerText = "Fehler: Datei konnte nicht gelesen werden.";
                 return;
             }
         } else {
             const v = $('vCore');
             const url = URL.createObjectURL(file);
             v.src = url;
-            
             await new Promise(r => v.onloadedmetadata = r);
             
-            const fps = 10; // Ziel-FPS für den Bot
-            const duration = v.duration;
-            const count = Math.min(Math.floor(duration * fps), max);
-            
+            const fps = 10; 
+            const count = Math.min(Math.floor(v.duration * fps), max);
             const cap = document.createElement('canvas');
             cap.width = v.videoWidth; 
             cap.height = v.videoHeight;
-            // willReadFrequently optimiert getImageData Performance massiv
             const ctx = cap.getContext('2d', { alpha: false, willReadFrequently: true });
 
             for(let i=0; i<count; i++) {
-                const targetTime = i / fps;
-                v.currentTime = targetTime;
-                
+                v.currentTime = i / fps;
                 await requestFrame(v);
-                
                 ctx.drawImage(v, 0, 0, cap.width, cap.height);
                 const raw = ctx.getImageData(0, 0, cap.width, cap.height).data;
                 const resized = manualResize(raw, cap.width, cap.height, w, h);
-                
                 frames[`frame${i+1}`] = pixelsToHex(resized, w, h);
                 drawPreview(resized, w, h);
-                $('status').innerText = `Status: Video extrahiere ${i+1}/${count}`;
-                
-                // Kleiner Yield für den Main Thread gegen Lags
+                $('status').innerText = `Prozessiervorgang: Video Frame ${i+1} von ${count}`;
                 await new Promise(r => setTimeout(r, 0));
             }
             URL.revokeObjectURL(url);
@@ -176,12 +296,13 @@
                 x_size: w, 
                 y_size: h, 
                 frame_count: Object.keys(frames).length,
-                generated_at: new Date().toISOString()
+                generated_at: new Date().toISOString(),
+                tool: "Hidden Gems Video Player"
             }, 
             frames 
         };
         
-        $('status').innerText = `✅ Fertig! ${Object.keys(frames).length} Frames bereit.`;
+        $('status').innerText = `✅ Konvertierung erfolgreich! ${Object.keys(frames).length} Frames generiert.`;
         $('dlBtn').disabled = false;
     }
 
@@ -191,7 +312,6 @@
             const row = [];
             for (let x = 0; x < w; x++) {
                 const i = (y * w + x) * 4;
-                // Fast-Path Hex Konvertierung
                 const r = data[i].toString(16).padStart(2, '0');
                 const g = data[i+1].toString(16).padStart(2, '0');
                 const b = data[i+2].toString(16).padStart(2, '0');
@@ -229,7 +349,7 @@
         const content = await zip.generateAsync({ type: "blob", platform: "UNIX" });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(content);
-        link.download = `animation_bundle_${Date.now()}.zip`;
+        link.download = `hidden_gems_bundle_${Date.now()}.zip`;
         link.click();
     };
 </script>
