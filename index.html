@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hidden-Gems Video Encoder</title>
+    <title>Hidden Gems Video Player</title>
     <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://unpkg.com/omggif@1.0.10/omggif.js"></script>
     
@@ -30,8 +30,8 @@
         .container { max-width: 700px; width: 100%; padding: 40px 20px; }
         
         header { text-align: center; margin-bottom: 30px; }
-        header h1 { color: var(--text-bright); margin: 0; font-size: 1.8rem; }
-        header p { color: #8b949e; margin-top: 5px; font-style: italic; }
+        header h1 { color: var(--text-bright); margin: 0; font-size: 2rem; letter-spacing: -0.5px; }
+        header p { color: #8b949e; margin-top: 8px; line-height: 1.4; max-width: 500px; margin-left: auto; margin-right: auto; }
 
         .card {
             background: var(--card);
@@ -42,7 +42,7 @@
         }
 
         .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-        .input-group label { display: block; font-size: 0.75rem; color: #8b949e; margin-bottom: 5px; text-transform: uppercase; }
+        .input-group label { display: block; font-size: 0.75rem; color: #8b949e; margin-bottom: 5px; text-transform: uppercase; font-weight: 600; }
         
         input {
             width: 100%;
@@ -52,26 +52,37 @@
             padding: 10px;
             border-radius: 6px;
             box-sizing: border-box;
+            outline: none;
+        }
+        input:focus { border-color: var(--accent); }
+
+        .preview-video-container {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            margin-bottom: 20px;
+            background: #000;
         }
 
         #dropZone {
             border: 2px dashed var(--border);
             border-radius: 12px;
-            padding: 50px 20px;
+            padding: 40px 20px;
             text-align: center;
             cursor: pointer;
-            background: rgba(255,255,255,0.02);
-            transition: 0.2s;
+            background: rgba(255,255,255,0.01);
+            transition: 0.2s ease;
         }
 
-        #dropZone.dragover { border-color: var(--accent); background: rgba(35, 134, 54, 0.05); }
+        #dropZone:hover, #dropZone.dragover { border-color: var(--accent); background: rgba(35, 134, 54, 0.05); }
 
         .btn {
             width: 100%;
-            padding: 15px;
-            border-radius: 6px;
+            padding: 16px;
+            border-radius: 8px;
             border: none;
-            font-weight: 600;
+            font-weight: 700;
             cursor: pointer;
             background: #21262d;
             color: #8b949e;
@@ -80,22 +91,23 @@
             justify-content: center;
             gap: 10px;
             transition: 0.2s;
+            text-transform: uppercase;
         }
 
-        .btn.active { background: var(--accent); color: white; }
-        .btn.active:hover { background: #2ea043; }
+        .btn.active { background: var(--accent); color: white; box-shadow: 0 4px 12px rgba(35, 134, 54, 0.3); }
 
         canvas {
             background: #000;
             display: block;
-            max-width: 100%;
+            width: 100%;
+            max-width: 400px;
             margin: 20px auto 0;
             border: 1px solid var(--border);
             image-rendering: pixelated;
         }
 
         .progress-box { margin-top: 20px; display: none; }
-        .bar-bg { height: 6px; background: #30363d; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+        .bar-bg { height: 8px; background: #30363d; border-radius: 4px; overflow: hidden; margin-top: 10px; }
         .bar-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.1s; }
 
         .hidden { display: none; }
@@ -105,9 +117,13 @@
 
 <div class="container">
     <header>
-        <h1>Hidden-Gems Video Encoder</h1>
-        <p>Den Runner als Videoplayer missbrauchen</p>
+        <h1>Hidden Gems Video Player</h1>
+        <p>Ein Projekt, das den Hidden-Gems Runner als Videoplayer missbraucht.</p>
     </header>
+
+    <div class="preview-video-container">
+        <video src="preview.mp4" autoplay loop muted playsinline style="width:100%; display:block;"></video>
+    </div>
 
     <div class="card">
         <div class="grid">
@@ -121,21 +137,21 @@
             </div>
             <div class="input-group">
                 <label>Frame Limit</label>
-                <input type="number" id="maxFrames" value="0" placeholder="Alle">
+                <input type="number" id="maxFrames" value="0">
             </div>
         </div>
     </div>
 
     <div class="card">
         <div id="dropZone">
-            <div style="font-weight: 600; font-size: 1.1rem;">Video oder GIF hier ablegen</div>
-            <div style="font-size: 0.85rem; color: #8b949e; margin-top: 5px;">Klicken oder Drag & Drop</div>
+            <div style="font-weight: 600; font-size: 1.1rem; color: var(--text-bright);">Video oder GIF hochladen</div>
+            <div style="font-size: 0.85rem; color: #8b949e; margin-top: 5px;">Zieh die Datei hierher oder klicke zum Auswählen</div>
             <input type="file" id="fileInput" class="hidden" accept="video/*,image/gif,.json">
         </div>
 
         <div id="progArea" class="progress-box">
-            <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
-                <span id="stat">Encoding...</span>
+            <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-family: monospace;">
+                <span id="stat">STATUS: WAITING</span>
                 <span id="perc">0%</span>
             </div>
             <div class="bar-bg"><div id="fill" class="bar-fill"></div></div>
@@ -145,7 +161,7 @@
     <div class="card">
         <canvas id="prev"></canvas>
         <button id="dlBtn" class="btn" style="margin-top: 20px;" disabled>
-            ZIP BUNDLE EXPORTIEREN
+            BOT-BUNDLE HERUNTERLADEN (.ZIP)
         </button>
     </div>
 </div>
@@ -241,10 +257,11 @@
         const p = Math.round((c/t)*100);
         $('fill').style.width = p+'%';
         $('perc').innerText = p+'%';
+        $('stat').innerText = `ENCODING FRAME ${c}/${t}`;
     }
 
     function done() {
-        $('stat').innerText = "Bereit zum Export";
+        $('stat').innerText = "STATUS: BUNDLE READY";
         $('dlBtn').disabled = false;
         $('dlBtn').classList.add('active');
     }
