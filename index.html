@@ -239,19 +239,33 @@
         done();
     }
 
-    function capture(w, h) {
-        const d = $('prev').getContext('2d').getImageData(0,0,w,h).data;
-        const res = {};
-        for(let y=0; y<h; y++) {
-            const r = [];
-            for(let x=0; x<w; x++) {
-                const i = (y * w + x) * 4;
-                r.push(`#${d[i].toString(16).padStart(2,'0')}${d[i+1].toString(16).padStart(2,'0')}${d[i+2].toString(16).padStart(2,'0')}`);
+function capture(w, h) {
+    const d = $('prev').getContext('2d').getImageData(0, 0, w, h).data;
+    const res = {};
+    for (let y = 0; y < h; y++) {
+        const row = [];
+        for (let x = 0; x < w; x++) {
+            const i = (y * w + x) * 4;
+            const r = d[i];
+            const g = d[i+1];
+            const b = d[i+2];
+            const a = d[i+3];
+
+            // Exakt wie in der Python-Lib: Wenn voll transparent -> Schwarz
+            if (a === 0) {
+                row.push("#000000");
+            } else {
+                // Konvertierung zu Hex (sicherstellen, dass 0-Werte korrekt gepadded werden)
+                const hex = "#" + [r, g, b].map(val => 
+                    val.toString(16).padStart(2, '0')
+                ).join('');
+                row.push(hex);
             }
-            res[`row${y+1}`] = r;
         }
-        return res;
+        res[`row${y+1}`] = row;
     }
+    return res;
+}
 
     function upd(c, t) {
         const p = Math.round((c/t)*100);
