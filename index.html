@@ -6,6 +6,7 @@
     <title>Hidden Gems Video Player</title>
     <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://unpkg.com/omggif@1.0.10/omggif.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jimp/0.16.13/jimp.min.js"></script>
     
     <style>
         :root {
@@ -117,7 +118,7 @@
 <div class="container">
     <header>
         <h1>Hidden Gems Video Player</h1>
-        <p>Ein Projekt, das den Hidden-Gems Runner als Videoplayer missbraucht.</p>
+        <p>Dieses Tool nutzt Jimp (PIL-Alternative) und die Frame-API für fehlerfreie Extraktion.</p>
     </header>
 
     <div class="preview-video-container">
@@ -188,70 +189,37 @@
 
         if(file.type === 'image/gif') handleGif(file);
         else if(file.type.startsWith('video/')) handleVideo(file);
-        else if(file.name.endsWith('.json')) handleJson(file);
     }
 
     /**
-     * NEAREST NEIGHBOR ALGORITHMUS (Manual Resizing)
-     * Entspricht exakt PIL.NEAREST
+     * PIXEL-EXTRAKTION MIT JIMP (1:1 PIL LOGIK)
      */
-    function resizeNearest(srcData, srcW, srcH, dstW, dstH) {
-        const dstData = new Uint8ClampedArray(dstW * dstH * 4);
-        const xRatio = srcW / dstW;
-        const yRatio = srcH / dstH;
-
-        for (let y = 0; y < dstH; y++) {
-            for (let x = 0; x < dstW; x++) {
-                const px = Math.floor(x * xRatio);
-                const py = Math.floor(y * yRatio);
-                const srcPos = (py * srcW + px) * 4;
-                const dstPos = (y * dstW + x) * 4;
-
-                dstData[dstPos] = srcData[srcPos];
-                dstData[dstPos+1] = srcData[srcPos+1];
-                dstData[dstPos+2] = srcData[srcPos+2];
-                dstData[dstPos+3] = srcData[srcPos+3];
-            }
-        }
-        return dstData;
-    }
-
-    function processPixelData(data, w, h) {
+    async function processWithJimp(canvas, targetW, targetH) {
+        // Buffer vom Canvas holen
+        const dataUrl = canvas.toDataURL('image/png');
+        const image = await Jimp.read(dataUrl);
+        
+        // Jimp.RESIZE_NEAREST_NEIGHBOR ist das Äquivalent zu PIL.Image.NEAREST
+        image.resize(targetW, targetH, Jimp.RESIZE_NEAREST_NEIGHBOR);
+        
         const frameData = {};
-        for (let y = 0; y < h; y++) {
+        for (let y = 0; y < targetH; y++) {
             const row = [];
-            for (let x = 0; x < w; x++) {
-                const i = (y * w + x) * 4;
-                const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
-                // 1:1 Python Logic
-                if (a === 0) row.push("#000000");
-                else {
-                    row.push(`#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`);
+            for (let x = 0; x < targetW; x++) {
+                const color = Jimp.intToRGBA(image.getPixelColor(x, y));
+                if (color.a === 0) {
+                    row.push("#000000");
+                } else {
+                    const hex = "#" + 
+                        color.r.toString(16).padStart(2, '0') + 
+                        color.g.toString(16).padStart(2, '0') + 
+                        color.b.toString(16).padStart(2, '0');
+                    row.push(hex);
                 }
             }
             frameData[`row${y + 1}`] = row;
         }
-        return frameData;
-    }
-
-    async function handleGif(file) {
-        const gr = new GifReader(new Uint8Array(await file.arrayBuffer()));
-        const w = parseInt($('width').value), h = parseInt($('height').value);
-        const limit = parseInt($('maxFrames').value) || gr.numFrames();
-        const frames = {};
-        
-        const count = Math.min(gr.numFrames(), limit);
-        for(let i=0; i<count; i++) {
-            const rgba = new Uint8ClampedArray(gr.width * gr.height * 4);
-            gr.decodeAndBlitFrameRGBA(i, rgba);
-            
-            const resized = resizeNearest(rgba, gr.width, gr.height, w, h);
-            frames[`frame${i+1}`] = processPixelData(resized, w, h);
-            upd(i+1, count);
-            if(i % 10 === 0) await new Promise(r => setTimeout(r, 0));
-        }
-        finalJson = { meta: { x_size: w, y_size: h, frame_count: count }, frames };
-        done();
+        return { frameData, jimpImage: image };
     }
 
     async function handleVideo(file) {
@@ -266,39 +234,72 @@
         const total = Math.min(Math.floor(v.duration * fps), limit);
         const frames = {};
         
-        const nativeC = document.createElement('canvas');
-        const nativeX = nativeC.getContext('2d');
-        nativeC.width = v.videoWidth; nativeC.height = v.videoHeight;
+        const captureCanvas = document.createElement('canvas');
+        captureCanvas.width = v.videoWidth;
+        captureCanvas.height = v.videoHeight;
+        const ctx = captureCanvas.getContext('2d', { alpha: false });
 
-        const pC = $('prev');
-        const pX = pC.getContext('2d');
-        pC.width = w; pC.height = h;
+        const previewCanvas = $('prev');
+        previewCanvas.width = w;
+        previewCanvas.height = h;
+        const pCtx = previewCanvas.getContext('2d');
 
         for(let i=0; i<total; i++) {
             v.currentTime = i / fps;
-            await new Promise(r => {
-                const onSeek = () => { v.removeEventListener('seeked', onSeek); r(); };
-                v.addEventListener('seeked', onSeek);
-            });
-            
-            // Warte kurz, bis der Frame wirklich stabil im Speicher liegt
-            await new Promise(r => setTimeout(r, 40));
 
-            nativeX.drawImage(v, 0, 0);
-            const srcData = nativeX.getImageData(0, 0, nativeC.width, nativeC.height).data;
-            
-            // MANUELLES RESIZE (KEIN CANVAS BLURRING)
-            const resized = resizeNearest(srcData, nativeC.width, nativeC.height, w, h);
-            
-            // Preview zeichnen
-            const imgData = new ImageData(resized, w, h);
-            pX.putImageData(imgData, 0, 0);
-            
-            frames[`frame${i+1}`] = processPixelData(resized, w, h);
+            // Moderne Frame-API nutzen
+            await new Promise(resolve => {
+                if ('requestVideoFrameCallback' in v) {
+                    v.requestVideoFrameCallback(() => resolve());
+                } else {
+                    v.onseeked = () => resolve();
+                }
+            });
+
+            // Frame auf großen Canvas zeichnen
+            ctx.drawImage(v, 0, 0);
+
+            // Mit Jimp verarbeiten (Resizing + Hex)
+            const result = await processWithJimp(captureCanvas, w, h);
+            frames[`frame${i+1}`] = result.frameData;
+
+            // Preview auf den kleinen Canvas bringen
+            const previewImg = new ImageData(
+                new Uint8ClampedArray(result.jimpImage.bitmap.data),
+                w, h
+            );
+            pCtx.putImageData(previewImg, 0, 0);
+
             upd(i+1, total);
         }
+        
         finalJson = { meta: { x_size: w, y_size: h, frame_count: total }, frames };
         URL.revokeObjectURL(url);
+        done();
+    }
+
+    async function handleGif(file) {
+        const gr = new GifReader(new Uint8Array(await file.arrayBuffer()));
+        const w = parseInt($('width').value), h = parseInt($('height').value);
+        const limit = parseInt($('maxFrames').value) || gr.numFrames();
+        const frames = {};
+        
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = gr.width;
+        tempCanvas.height = gr.height;
+        const tempCtx = tempCanvas.getContext('2d');
+
+        const count = Math.min(gr.numFrames(), limit);
+        for(let i=0; i<count; i++) {
+            const idata = tempCtx.createImageData(gr.width, gr.height);
+            gr.decodeAndBlitFrameRGBA(i, idata.data);
+            tempCtx.putImageData(idata, 0, 0);
+            
+            const result = await processWithJimp(tempCanvas, w, h);
+            frames[`frame${i+1}`] = result.frameData;
+            upd(i+1, count);
+        }
+        finalJson = { meta: { x_size: w, y_size: h, frame_count: count }, frames };
         done();
     }
 
@@ -306,7 +307,7 @@
         const p = Math.round((c/t)*100);
         $('fill').style.width = p+'%';
         $('perc').innerText = p+'%';
-        $('stat').innerText = `PROCESSING FRAME ${c}/${t}`;
+        $('stat').innerText = `JIMP PROCESSING FRAME ${c}/${t}`;
     }
 
     function done() {
@@ -319,6 +320,7 @@
         const zip = new JSZip();
         zip.file("animation.json", JSON.stringify(finalJson, null, 4));
 
+        // Dateien dynamisch aus deinem Repo holen
         const assets = ['bot.py', 'bot.yaml', 'start.bat', 'start.sh'];
         for(const a of assets) {
             try {
@@ -327,7 +329,7 @@
                     const ab = await res.arrayBuffer();
                     zip.file(a, ab, { binary: true, unixPermissions: 0o777 });
                 }
-            } catch(e) {}
+            } catch(e) { console.error(e); }
         }
 
         const blob = await zip.generateAsync({ type: "blob", platform: "UNIX" });
