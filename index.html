@@ -2,299 +2,162 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hidden Gems Video Player</title>
-    
+    <title>Hidden Gems Video Player (Python PIL Core)</title>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
     <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
-    <script src="https://unpkg.com/omggif@1.0.10/omggif.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jimp@0.22.10/browser/lib/jimp.js"></script>
     
     <style>
-        :root {
-            --bg: #0d1117;
-            --card: #161b22;
-            --border: #30363d;
-            --accent: #238636;
-            --text: #c9d1d9;
-            --text-bright: #f0f6fc;
-        }
-
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-        }
-
-        .container { max-width: 700px; width: 100%; padding: 40px 20px; }
-        
-        header { text-align: center; margin-bottom: 30px; }
-        header h1 { color: var(--text-bright); margin: 0; font-size: 2rem; letter-spacing: -0.5px; }
-        header p { color: #8b949e; margin-top: 8px; line-height: 1.4; }
-
-        .card {
-            background: var(--card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 20px;
-        }
-
-        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
-        .input-group label { display: block; font-size: 0.75rem; color: #8b949e; margin-bottom: 5px; text-transform: uppercase; font-weight: 600; }
-        
-        input {
-            width: 100%;
-            background: #0d1117;
-            border: 1px solid var(--border);
-            color: var(--text-bright);
-            padding: 10px;
-            border-radius: 6px;
-            box-sizing: border-box;
-            outline: none;
-        }
-
-        .preview-video-container {
-            width: 100%;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-            margin-bottom: 20px;
-            background: #000;
-        }
-
-        #dropZone {
-            border: 2px dashed var(--border);
-            border-radius: 12px;
-            padding: 40px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: 0.2s ease;
-        }
-
+        :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --accent: #238636; --text: #c9d1d9; }
+        body { background: var(--bg); color: var(--text); font-family: sans-serif; display: flex; justify-content: center; padding: 20px; }
+        .container { max-width: 600px; width: 100%; }
+        .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        #dropZone { border: 2px dashed var(--border); padding: 40px; text-align: center; cursor: pointer; border-radius: 12px; }
         #dropZone.loading { cursor: wait; opacity: 0.5; }
-        #dropZone:hover:not(.loading) { border-color: var(--accent); background: rgba(35, 134, 54, 0.05); }
-
-        .btn {
-            width: 100%;
-            padding: 16px;
-            border-radius: 8px;
-            border: none;
-            font-weight: 700;
-            cursor: pointer;
-            background: #21262d;
-            color: #8b949e;
-            text-transform: uppercase;
-        }
-
-        .btn.active { background: var(--accent); color: white; }
-
-        canvas {
-            background: #000;
-            display: block;
-            width: 100%;
-            max-width: 400px;
-            margin: 20px auto 0;
-            border: 1px solid var(--border);
-            image-rendering: pixelated;
-        }
-
-        .progress-box { margin-top: 20px; display: none; }
-        .bar-bg { height: 8px; background: #30363d; border-radius: 4px; overflow: hidden; margin-top: 10px; }
-        .bar-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.1s; }
-
-        .hidden { display: none; }
+        .btn { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn:disabled { background: #21262d; color: #8b949e; cursor: not-allowed; }
+        input { width: 50px; background: #0d1117; border: 1px solid var(--border); color: white; padding: 5px; }
+        .log { font-size: 0.8rem; color: #8b949e; margin-top: 10px; font-family: monospace; }
+        #preview { image-rendering: pixelated; width: 100%; max-width: 400px; display: block; margin: 10px auto; border: 1px solid var(--border); }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <header>
-        <h1>Hidden Gems Video Player</h1>
-        <p>Nutzt die Jimp-API für 1:1 Pillow-Logik.</p>
-    </header>
-
-    <div class="preview-video-container">
-        <video src="preview.mp4" autoplay loop muted playsinline style="width:100%; display:block;"></video>
+    <div class="card">
+        <h2>Hidden Gems Video Player</h2>
+        <p style="font-size: 0.8rem;">Diese Version führt <b>Original Pillow (Python)</b> via WebAssembly aus.</p>
+        <div id="status">Lade Python Kern (PIL)...</div>
     </div>
 
     <div class="card">
-        <div class="grid">
-            <div class="input-group">
-                <label>Breite (X)</label>
-                <input type="number" id="width" value="49">
-            </div>
-            <div class="input-group">
-                <label>Höhe (Y)</label>
-                <input type="number" id="height" value="29">
-            </div>
-            <div class="input-group">
-                <label>Max Frames</label>
-                <input type="number" id="maxFrames" value="0">
-            </div>
-        </div>
+        X: <input type="number" id="width" value="49"> 
+        Y: <input type="number" id="height" value="29">
+        Frames: <input type="number" id="maxFrames" value="0"> (0=alle)
+    </div>
+
+    <div class="card" id="dropZone">
+        <div id="dropText">Warte auf Python...</div>
+        <input type="file" id="fileInput" hidden accept="video/*">
     </div>
 
     <div class="card">
-        <div id="dropZone">
-            <div id="dropText" style="font-weight: 600; font-size: 1.1rem; color: var(--text-bright);">Initialisiere Library...</div>
-            <div style="font-size: 0.85rem; color: #8b949e; margin-top: 5px;">Bitte warten</div>
-            <input type="file" id="fileInput" class="hidden" accept="video/*,image/gif">
-        </div>
-
-        <div id="progArea" class="progress-box">
-            <div style="display:flex; justify-content:space-between; font-size:0.8rem; font-family: monospace;">
-                <span id="stat">STATUS: WAITING</span>
-                <span id="perc">0%</span>
-            </div>
-            <div class="bar-bg"><div id="fill" class="bar-fill"></div></div>
-        </div>
-    </div>
-
-    <div class="card">
-        <canvas id="prev"></canvas>
-        <button id="dlBtn" class="btn" style="margin-top: 20px;" disabled>BUNDLE HERUNTERLADEN</button>
+        <div id="progressText">Bereit.</div>
+        <canvas id="preview"></canvas>
+        <button id="dlBtn" class="btn" disabled>BOT-BUNDLE ZIP DOWNLOAD</button>
+        <div class="log" id="logger"></div>
     </div>
 </div>
 
-<video id="vCore" class="hidden" muted playsinline></video>
+<video id="vCore" hidden muted playsinline></video>
 
 <script>
     const $ = id => document.getElementById(id);
+    let pyodide;
     let finalJson = null;
 
-    // Library Check
-    function checkJimp() {
-        if (typeof Jimp !== 'undefined') {
-            $('dropText').innerText = "Video oder GIF hochladen";
+    // --- 1. PYTHON UMGEBUNG INITIALISIEREN ---
+    async function initPython() {
+        try {
+            pyodide = await loadPyodide();
+            await pyodide.loadPackage("micropip");
+            const micropip = pyodide.pyimport("micropip");
+            await micropip.install("Pillow");
+            
+            $('status').innerText = "✅ PIL (Pillow) ist bereit!";
+            $('dropText').innerText = "Video hierher ziehen oder klicken";
             $('dropZone').classList.remove('loading');
-            return true;
+        } catch (e) {
+            $('status').innerText = "❌ Fehler beim Laden von Python.";
+            console.error(e);
         }
-        return false;
     }
-    const jimpInterval = setInterval(() => { if(checkJimp()) clearInterval(jimpInterval); }, 100);
+    initPython();
 
-    $('dropZone').onclick = () => { if(typeof Jimp !== 'undefined') $('fileInput').click(); };
+    $('dropZone').onclick = () => { if(pyodide) $('fileInput').click(); };
     $('fileInput').onchange = e => handle(e.target.files[0]);
 
-    function handle(file) {
-        $('progArea').style.display = 'block';
-        $('dlBtn').disabled = true;
-        if(file.type === 'image/gif') handleGif(file);
-        else handleVideo(file);
-    }
-
-    async function processFrame(canvas, targetW, targetH) {
-        // Wir nutzen den Buffer direkt für Jimp
-        const buffer = canvas.getContext('2d').getImageData(0,0, canvas.width, canvas.height).data.buffer;
-        
-        // Jimp Objekt aus Canvas-Rohdaten erstellen
-        const image = await new Jimp({
-            data: Buffer.from(buffer),
-            width: canvas.width,
-            height: canvas.height
-        });
-
-        // 1:1 Pillow RESIZE_NEAREST_NEIGHBOR
-        image.resize(targetW, targetH, Jimp.RESIZE_NEAREST_NEIGHBOR);
-
-        const frameData = {};
-        for (let y = 0; y < targetH; y++) {
-            const row = [];
-            for (let x = 0; x < targetW; x++) {
-                const color = Jimp.intToRGBA(image.getPixelColor(x, y));
-                if (color.a === 0) row.push("#000000");
-                else {
-                    row.push("#" + 
-                        color.r.toString(16).padStart(2, '0') + 
-                        color.g.toString(16).padStart(2, '0') + 
-                        color.b.toString(16).padStart(2, '0')
-                    );
-                }
-            }
-            frameData[`row${y + 1}`] = row;
-        }
-        return { frameData, image };
-    }
-
-    async function handleVideo(file) {
+    async function handle(file) {
         const v = $('vCore');
         v.src = URL.createObjectURL(file);
         await new Promise(r => v.onloadedmetadata = r);
 
-        const w = parseInt($('width').value), h = parseInt($('height').value);
+        const w = parseInt($('width').value);
+        const h = parseInt($('height').value);
         const limit = parseInt($('maxFrames').value) || 9999;
         const fps = 10;
         const total = Math.min(Math.floor(v.duration * fps), limit);
-        const frames = {};
-
+        
         const cap = document.createElement('canvas');
         cap.width = v.videoWidth; cap.height = v.videoHeight;
-        const ctx = cap.getContext('2d', { willReadFrequently: true });
-
-        const pC = $('prev'); pC.width = w; pC.height = h;
-        const pX = pC.getContext('2d');
+        const ctx = cap.getContext('2d', {willReadFrequently: true});
+        const frames = {};
 
         for(let i=0; i<total; i++) {
             v.currentTime = i / fps;
             await new Promise(r => v.onseeked = r);
             
-            // Warte auf Stabilisierung des Video-Layers
-            await new Promise(r => requestAnimationFrame(r));
-
+            // Frame-Capture Sicherheit
             ctx.drawImage(v, 0, 0);
-            const result = await processFrame(cap, w, h);
+            const imageData = ctx.getImageData(0, 0, cap.width, cap.height);
             
-            frames[`frame${i+1}`] = result.frameData;
-            
-            // Preview
-            const imgData = new ImageData(new Uint8ClampedArray(result.image.bitmap.data), w, h);
-            pX.putImageData(imgData, 0, 0);
+            // --- 2. ÜBERGABE AN ECHTES PILLOW ---
+            // Wir schicken die Rohdaten an Python
+            pyodide.globals.set("raw_data", imageData.data);
+            pyodide.globals.set("src_w", cap.width);
+            pyodide.globals.set("src_h", cap.height);
+            pyodide.globals.set("target_w", w);
+            pyodide.globals.set("target_h", h);
 
-            upd(i+1, total);
+            const pythonCode = `
+from PIL import Image
+import numpy as np
+
+# Image aus JS-Bytes erstellen
+img = Image.frombytes("RGBA", (src_w, src_h), raw_data.to_py())
+
+# 1:1 DEIN LOGIK-KERN
+img = img.resize((target_w, target_h), Image.NEAREST)
+
+# Hex-Daten extrahieren
+res = {}
+for y in range(target_h):
+    row = []
+    for x in range(target_w):
+        r, g, b, a = img.getpixel((x, y))
+        if a == 0:
+            row.append("#000000")
+        else:
+            row.append(f"#{r:02x}{g:02x}{b:02x}")
+    res[f"row{y+1}"] = row
+
+# Zurück an JS
+res
+`;
+            const frameResult = await pyodide.runPythonAsync(pythonCode);
+            frames[`frame${i+1}`] = frameResult.toJs();
+
+            // Preview Update
+            if (i % 5 === 0) {
+                $('progressText').innerText = `Verarbeite Frame ${i+1}/${total} mit PIL...`;
+                drawPreview(frames[`frame${i+1}`], w, h);
+            }
         }
+
         finalJson = { meta: { x_size: w, y_size: h, frame_count: total }, frames };
-        done();
-    }
-
-    async function handleGif(file) {
-        const gr = new GifReader(new Uint8Array(await file.arrayBuffer()));
-        const w = parseInt($('width').value), h = parseInt($('height').value);
-        const limit = parseInt($('maxFrames').value) || gr.numFrames();
-        const frames = {};
-        const count = Math.min(gr.numFrames(), limit);
-
-        const temp = document.createElement('canvas');
-        temp.width = gr.width; temp.height = gr.height;
-        const tX = temp.getContext('2d');
-
-        for(let i=0; i<count; i++) {
-            const idata = tX.createImageData(gr.width, gr.height);
-            gr.decodeAndBlitFrameRGBA(i, idata.data);
-            tX.putImageData(idata, 0, 0);
-
-            const result = await processFrame(temp, w, h);
-            frames[`frame${i+1}`] = result.frameData;
-            upd(i+1, count);
-        }
-        finalJson = { meta: { x_size: w, y_size: h, frame_count: count }, frames };
-        done();
-    }
-
-    function upd(c, t) {
-        const p = Math.round((c/t)*100);
-        $('fill').style.width = p+'%';
-        $('perc').innerText = p+'%';
-        $('stat').innerText = `PROCESSING FRAME ${c}/${t}`;
-    }
-
-    function done() {
-        $('stat').innerText = "STATUS: READY";
+        $('progressText').innerText = "✅ Fertig! PIL hat alle Frames verarbeitet.";
         $('dlBtn').disabled = false;
-        $('dlBtn').classList.add('active');
+    }
+
+    function drawPreview(frame, w, h) {
+        const pC = $('preview'); pC.width = w; pC.height = h;
+        const pX = pC.getContext('2d');
+        for(let y=0; y<h; y++) {
+            const row = frame[`row${y+1}`];
+            for(let x=0; x<w; x++) {
+                pX.fillStyle = row[x];
+                pX.fillRect(x, y, 1, 1);
+            }
+        }
     }
 
     $('dlBtn').onclick = async () => {
@@ -302,10 +165,12 @@
         zip.file("animation.json", JSON.stringify(finalJson, null, 4));
         const assets = ['bot.py', 'bot.yaml', 'start.bat', 'start.sh'];
         for(const a of assets) {
-            const res = await fetch(a);
-            if(res.ok) zip.file(a, await res.arrayBuffer(), { binary: true, unixPermissions: 0o777 });
+            try {
+                const res = await fetch(a);
+                if(res.ok) zip.file(a, await res.arrayBuffer());
+            } catch(e) {}
         }
-        const blob = await zip.generateAsync({ type: "blob", platform: "UNIX" });
+        const blob = await zip.generateAsync({type:"blob"});
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = "bot_bundle.zip";
