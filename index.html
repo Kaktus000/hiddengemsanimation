@@ -191,19 +191,26 @@
         else if(file.name.endsWith('.json')) handleJson(file);
     }
 
+    // Präzise Pixel-Extraktion 1:1 zur Python Lib
     function capture(w, h, ctx) {
-        const d = ctx.getImageData(0, 0, w, h).data;
+        const imageData = ctx.getImageData(0, 0, w, h);
+        const d = imageData.data;
         const frameData = {};
+        
         for (let y = 0; y < h; y++) {
             const row = [];
             for (let x = 0; x < w; x++) {
                 const i = (y * w + x) * 4;
                 const r = d[i], g = d[i+1], b = d[i+2], a = d[i+3];
-                // 1:1 Logik aus der Python Lib
+                
                 if (a === 0) {
                     row.push("#000000");
                 } else {
-                    row.push(`#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`);
+                    const hex = "#" + 
+                        r.toString(16).padStart(2, '0') + 
+                        g.toString(16).padStart(2, '0') + 
+                        b.toString(16).padStart(2, '0');
+                    row.push(hex);
                 }
             }
             frameData[`row${y + 1}`] = row;
@@ -224,7 +231,7 @@
         const pC = $('prev');
         const pX = pC.getContext('2d', { willReadFrequently: true });
         pC.width = w; pC.height = h;
-        pX.imageSmoothingEnabled = false; // NEAREST interpolation
+        pX.imageSmoothingEnabled = false;
 
         const count = Math.min(gr.numFrames(), limit);
         for(let i=0; i<count; i++) {
@@ -258,17 +265,19 @@
         const pC = $('prev');
         const pX = pC.getContext('2d', { willReadFrequently: true });
         pC.width = w; pC.height = h;
-        pX.imageSmoothingEnabled = false; // NEAREST interpolation
+        pX.imageSmoothingEnabled = false;
 
         for(let i=0; i<total; i++) {
             v.currentTime = i / fps;
-            // WICHTIG: Auf das Seek-Event warten, um schwarze Frames/Flicker zu vermeiden
+            
+            // Sync Fix: Warten auf seeked + einen kleinen Delay für GPU-Ready
             await new Promise(r => {
-                const onSeeked = () => {
-                    v.removeEventListener('seeked', onSeeked);
-                    r();
+                const ready = () => {
+                    v.removeEventListener('seeked', ready);
+                    // Kurzer Buffer gegen Glitches
+                    requestAnimationFrame(() => r());
                 };
-                v.addEventListener('seeked', onSeeked);
+                v.addEventListener('seeked', ready);
             });
 
             pX.clearRect(0, 0, w, h);
