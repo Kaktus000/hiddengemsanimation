@@ -54,7 +54,6 @@
             box-sizing: border-box;
             outline: none;
         }
-        input:focus { border-color: var(--accent); }
 
         .preview-video-container {
             width: 100%;
@@ -136,7 +135,7 @@
                 <input type="number" id="height" value="29">
             </div>
             <div class="input-group">
-                <label>Frame Limit</label>
+                <label>Max Frames</label>
                 <input type="number" id="maxFrames" value="0">
             </div>
         </div>
@@ -166,7 +165,7 @@
     </div>
 </div>
 
-<video id="vCore" class="hidden" muted playsinline></video>
+<video id="vCore" class="hidden" muted playsinline crossorigin="anonymous"></video>
 
 <script>
     const $ = id => document.getElementById(id);
@@ -192,24 +191,51 @@
         else if(file.name.endsWith('.json')) handleJson(file);
     }
 
+    function capture(w, h, ctx) {
+        const d = ctx.getImageData(0, 0, w, h).data;
+        const frameData = {};
+        for (let y = 0; y < h; y++) {
+            const row = [];
+            for (let x = 0; x < w; x++) {
+                const i = (y * w + x) * 4;
+                const r = d[i], g = d[i+1], b = d[i+2], a = d[i+3];
+                // 1:1 Logik aus der Python Lib
+                if (a === 0) {
+                    row.push("#000000");
+                } else {
+                    row.push(`#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`);
+                }
+            }
+            frameData[`row${y + 1}`] = row;
+        }
+        return frameData;
+    }
+
     async function handleGif(file) {
         const gr = new GifReader(new Uint8Array(await file.arrayBuffer()));
         const w = parseInt($('width').value), h = parseInt($('height').value);
         const limit = parseInt($('maxFrames').value) || gr.numFrames();
         const frames = {};
+        
         const tC = document.createElement('canvas');
         const tX = tC.getContext('2d');
         tC.width = gr.width; tC.height = gr.height;
+
+        const pC = $('prev');
+        const pX = pC.getContext('2d', { willReadFrequently: true });
+        pC.width = w; pC.height = h;
+        pX.imageSmoothingEnabled = false; // NEAREST interpolation
 
         const count = Math.min(gr.numFrames(), limit);
         for(let i=0; i<count; i++) {
             const idata = tX.createImageData(gr.width, gr.height);
             gr.decodeAndBlitFrameRGBA(i, idata.data);
             tX.putImageData(idata, 0, 0);
-            $('prev').width = w; $('prev').height = h;
-            const ctx = $('prev').getContext('2d');
-            ctx.drawImage(tC, 0, 0, w, h);
-            frames[`frame${i+1}`] = capture(w, h);
+            
+            pX.clearRect(0, 0, w, h);
+            pX.drawImage(tC, 0, 0, w, h);
+            
+            frames[`frame${i+1}`] = capture(w, h, pX);
             upd(i+1, count);
         }
         finalJson = { meta: { x_size: w, y_size: h, frame_count: count }, frames };
@@ -218,60 +244,50 @@
 
     async function handleVideo(file) {
         const v = $('vCore');
-        v.src = URL.createObjectURL(file);
-        await v.play(); v.pause();
+        const url = URL.createObjectURL(file);
+        v.src = url;
+        
+        await new Promise(r => v.onloadedmetadata = r);
+        
         const w = parseInt($('width').value), h = parseInt($('height').value);
-        const fps = 10;
         const limit = parseInt($('maxFrames').value) || 99999;
+        const fps = 10;
         const total = Math.min(Math.floor(v.duration * fps), limit);
         const frames = {};
-        $('prev').width = w; $('prev').height = h;
-        const ctx = $('prev').getContext('2d');
+        
+        const pC = $('prev');
+        const pX = pC.getContext('2d', { willReadFrequently: true });
+        pC.width = w; pC.height = h;
+        pX.imageSmoothingEnabled = false; // NEAREST interpolation
 
         for(let i=0; i<total; i++) {
             v.currentTime = i / fps;
-            await new Promise(r => v.onseeked = r);
-            ctx.drawImage(v, 0, 0, w, h);
-            frames[`frame${i+1}`] = capture(w, h);
+            // WICHTIG: Auf das Seek-Event warten, um schwarze Frames/Flicker zu vermeiden
+            await new Promise(r => {
+                const onSeeked = () => {
+                    v.removeEventListener('seeked', onSeeked);
+                    r();
+                };
+                v.addEventListener('seeked', onSeeked);
+            });
+
+            pX.clearRect(0, 0, w, h);
+            pX.drawImage(v, 0, 0, w, h);
+            
+            frames[`frame${i+1}`] = capture(w, h, pX);
             upd(i+1, total);
         }
+        
         finalJson = { meta: { x_size: w, y_size: h, frame_count: total }, frames };
+        URL.revokeObjectURL(url);
         done();
     }
-
-function capture(w, h) {
-    const d = $('prev').getContext('2d').getImageData(0, 0, w, h).data;
-    const res = {};
-    for (let y = 0; y < h; y++) {
-        const row = [];
-        for (let x = 0; x < w; x++) {
-            const i = (y * w + x) * 4;
-            const r = d[i];
-            const g = d[i+1];
-            const b = d[i+2];
-            const a = d[i+3];
-
-            // Exakt wie in der Python-Lib: Wenn voll transparent -> Schwarz
-            if (a === 0) {
-                row.push("#000000");
-            } else {
-                // Konvertierung zu Hex (sicherstellen, dass 0-Werte korrekt gepadded werden)
-                const hex = "#" + [r, g, b].map(val => 
-                    val.toString(16).padStart(2, '0')
-                ).join('');
-                row.push(hex);
-            }
-        }
-        res[`row${y+1}`] = row;
-    }
-    return res;
-}
 
     function upd(c, t) {
         const p = Math.round((c/t)*100);
         $('fill').style.width = p+'%';
         $('perc').innerText = p+'%';
-        $('stat').innerText = `ENCODING FRAME ${c}/${t}`;
+        $('stat').innerText = `PROCESSING FRAME ${c}/${t}`;
     }
 
     function done() {
