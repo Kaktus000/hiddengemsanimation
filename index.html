@@ -2,51 +2,44 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hidden Gems Video Player</title>
+    <title>Hidden Gems Video Player - Sync Edition</title>
     <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://unpkg.com/omggif@1.0.10/omggif.js"></script>
-    
     <style>
-        :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --accent: #238636; --text: #c9d1d9; --bright: #f0f6fc; }
-        body { background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; display: flex; justify-content: center; margin: 0; padding: 20px; }
-        .container { max-width: 650px; width: 100%; }
+        :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --accent: #238636; --text: #c9d1d9; }
+        body { background: var(--bg); color: var(--text); font-family: -apple-system, sans-serif; padding: 20px; display: flex; justify-content: center; }
+        .container { max-width: 600px; width: 100%; }
         .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 15px; }
-        h1 { color: var(--bright); font-size: 1.5rem; text-align: center; margin-top: 0; }
-        .input-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        label { display: block; font-size: 0.7rem; color: #8b949e; text-transform: uppercase; margin-bottom: 5px; }
-        input { width: 100%; background: #0d1117; border: 1px solid var(--border); color: white; padding: 8px; border-radius: 6px; box-sizing: border-box; }
-        #dropZone { border: 2px dashed var(--border); border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: 0.2s; }
+        #dropZone { border: 2px dashed var(--border); padding: 40px; text-align: center; cursor: pointer; border-radius: 12px; transition: 0.2s; }
         #dropZone:hover { border-color: var(--accent); background: rgba(35, 134, 54, 0.05); }
-        .btn { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; }
-        .btn:disabled { background: #21262d; color: #8b949e; cursor: not-allowed; }
-        #preview { width: 100%; max-width: 300px; height: auto; display: block; margin: 20px auto; image-rendering: pixelated; border: 1px solid var(--border); background: #000; }
-        .progress-bar { height: 6px; background: #30363d; border-radius: 3px; margin-top: 10px; overflow: hidden; display: none; }
-        .progress-fill { height: 100%; width: 0%; background: var(--accent); transition: width 0.1s; }
+        .btn { width: 100%; padding: 15px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn:disabled { background: #21262d; opacity: 0.5; cursor: not-allowed; }
+        input[type="number"] { background: #0d1117; border: 1px solid var(--border); color: white; padding: 5px; width: 60px; border-radius: 4px; }
+        #preview { width: 100%; height: auto; image-rendering: pixelated; border: 1px solid #000; background: #000; margin-top: 10px; border-radius: 4px; }
+        .status-text { font-family: monospace; font-size: 0.85rem; margin-top: 10px; color: #8b949e; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="card">
-        <h1>Hidden Gems Video Player</h1>
-        <div class="input-row">
-            <div><label>Breite (X)</label><input type="number" id="width" value="49"></div>
-            <div><label>Höhe (Y)</label><input type="number" id="height" value="29"></div>
-            <div><label>Max Frames</label><input type="number" id="maxFrames" value="0"></div>
+        <h2 style="margin-top:0; color: #f0f6fc;">Hidden Gems Animation Gen</h2>
+        <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+            <label>Breite: <input type="number" id="width" value="49"></label>
+            <label>Höhe: <input type="number" id="height" value="29"></label>
+            <label>Max F: <input type="number" id="maxFrames" value="0"></label>
         </div>
         <div id="dropZone">
-            <strong style="color: var(--bright);">Datei hierher ziehen</strong><br>
-            <span style="font-size: 0.8rem; color: #8b949e;">Video oder GIF (Production Mode)</span>
-            <input type="file" id="fileInput" hidden accept="video/*,image/gif">
+            <strong>Datei hierher ziehen</strong><br>
+            <span style="font-size: 0.8rem; color: #8b949e;">Video oder GIF (automatische Erkennung)</span>
         </div>
-        <div class="progress-bar" id="pBar"><div class="progress-fill" id="pFill"></div></div>
+        <input type="file" id="fileInput" hidden>
     </div>
 
-    <div class="card" style="text-align: center;">
+    <div class="card">
+        <div id="status" class="status-text">Bereit zur Verarbeitung.</div>
         <canvas id="preview"></canvas>
-        <button id="dlBtn" class="btn" disabled>Bot-Bundle Herunterladen (.zip)</button>
-        <p id="status" style="font-size: 0.8rem; color: #8b949e; margin-top: 10px;">Bereit zum Encoden.</p>
+        <button id="dlBtn" class="btn" style="margin-top:20px;" disabled>BUNDLE DOWNLOAD (.ZIP)</button>
     </div>
 </div>
 
@@ -57,78 +50,63 @@
     let finalJson = null;
 
     $('dropZone').onclick = () => $('fileInput').click();
-    $('fileInput').onchange = e => handleFile(e.target.files[0]);
+    $('fileInput').onchange = e => handle(e.target.files[0]);
 
-    // DER KERN: 1:1 PIL NEAREST NEIGHBOR LOGIK
-    function resizeNearest(srcData, srcW, srcH, dstW, dstH) {
-        const dstData = new Uint8ClampedArray(dstW * dstH * 4);
-        const xRatio = srcW / dstW;
-        const yRatio = srcH / dstH;
-
-        for (let y = 0; y < dstH; y++) {
-            for (let x = 0; x < dstW; x++) {
-                const px = Math.floor(x * xRatio);
-                const py = Math.floor(y * yRatio);
-                const srcPos = (py * srcW + px) * 4;
-                const dstPos = (y * dstW + x) * 4;
-
-                dstData[dstPos] = srcData[srcPos];     // R
-                dstData[dstPos+1] = srcData[srcPos+1]; // G
-                dstData[dstPos+2] = srcData[srcPos+2]; // B
-                dstData[dstPos+3] = srcData[srcPos+3]; // A
+    // 1:1 PIL NEAREST LOGIK (Mathematisch exakt)
+    function manualResize(srcData, sw, sh, dw, dh) {
+        const dstData = new Uint8ClampedArray(dw * dh * 4);
+        const xr = sw / dw;
+        const yr = sh / dh;
+        for (let y = 0; y < dh; y++) {
+            for (let x = 0; x < dw; x++) {
+                const sx = Math.floor(x * xr);
+                const sy = Math.floor(y * yr);
+                const srcPos = (sy * sw + sx) * 4;
+                const dstPos = (y * dw + x) * 4;
+                dstData[dstPos]   = srcData[srcPos];
+                dstData[dstPos+1] = srcData[srcPos+1];
+                dstData[dstPos+2] = srcData[srcPos+2];
+                dstData[dstPos+3] = srcData[srcPos+3];
             }
         }
         return dstData;
     }
 
-    function imageDataToHex(data, w, h) {
-        const frames = {};
-        for (let y = 0; y < h; y++) {
-            const row = [];
-            for (let x = 0; x < w; x++) {
-                const i = (y * w + x) * 4;
-                if (data[i+3] === 0) {
-                    row.push("#000000");
-                } else {
-                    const r = data[i].toString(16).padStart(2, '0');
-                    const g = data[i+1].toString(16).padStart(2, '0');
-                    const b = data[i+2].toString(16).padStart(2, '0');
-                    row.push(`#${r}${g}${b}`);
-                }
+    // DIE API: Wartet bis der Browser den Frame wirklich "präsentiert"
+    function waitForFrame(video) {
+        return new Promise((resolve) => {
+            if ('requestVideoFrameCallback' in video) {
+                video.requestVideoFrameCallback((now, metadata) => {
+                    resolve();
+                });
+            } else {
+                // Fallback für Browser ohne rVFC (z.B. altes Safari)
+                video.onseeked = () => requestAnimationFrame(() => resolve());
             }
-            frames[`row${y+1}`] = row;
-        }
-        return frames;
+        });
     }
 
-    async function handleFile(file) {
+    async function handle(file) {
         if (!file) return;
-        $('pBar').style.display = 'block';
-        $('dlBtn').disabled = true;
-        
         const w = parseInt($('width').value);
         const h = parseInt($('height').value);
         const max = parseInt($('maxFrames').value) || 9999;
-        const allFrames = {};
-
+        const frames = {};
+        
+        $('status').innerText = "Status: Analysiere Datei...";
+        
         if (file.type === 'image/gif') {
-            // GIF DECODER (Umgeht Video-Decoder Fehler)
-            const reader = new GifReader(new Uint8Array(await file.arrayBuffer()));
-            const count = Math.min(reader.numFrames(), max);
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = reader.width;
-            tempCanvas.height = reader.height;
-            const tempCtx = tempCanvas.getContext('2d');
-
-            for (let i = 0; i < count; i++) {
-                const idata = tempCtx.createImageData(reader.width, reader.height);
-                reader.decodeAndBlitFrameRGBA(i, idata.data);
-                const resized = resizeNearest(idata.data, reader.width, reader.height, w, h);
-                allFrames[`frame${i+1}`] = imageDataToHex(resized, w, h);
-                updateProgress(i + 1, count, resized, w, h);
+            const gr = new GifReader(new Uint8Array(await file.arrayBuffer()));
+            const count = Math.min(gr.numFrames(), max);
+            for(let i=0; i<count; i++) {
+                const rgba = new Uint8ClampedArray(gr.width * gr.height * 4);
+                gr.decodeAndBlitFrameRGBA(i, rgba);
+                const resized = manualResize(rgba, gr.width, gr.height, w, h);
+                frames[`frame${i+1}`] = pixelsToHex(resized, w, h);
+                drawPreview(resized, w, h);
+                $('status').innerText = `Status: GIF Frame ${i+1}/${count}`;
             }
         } else {
-            // VIDEO DECODER
             const v = $('vCore');
             v.src = URL.createObjectURL(file);
             await new Promise(r => v.onloadedmetadata = r);
@@ -136,53 +114,72 @@
             const count = Math.min(Math.floor(v.duration * fps), max);
             const cap = document.createElement('canvas');
             cap.width = v.videoWidth; cap.height = v.videoHeight;
-            const ctx = cap.getContext('2d', { willReadFrequently: true });
+            const ctx = cap.getContext('2d', { alpha: false });
 
-            for (let i = 0; i < count; i++) {
+            for(let i=0; i<count; i++) {
                 v.currentTime = i / fps;
-                await new Promise(r => v.onseeked = r);
+                
+                // Hier warten wir auf die API statt auf einen festen Timeout
+                await waitForFrame(v);
+                
                 ctx.drawImage(v, 0, 0);
-                const srcData = ctx.getImageData(0, 0, cap.width, cap.height).data;
-                const resized = resizeNearest(srcData, cap.width, cap.height, w, h);
-                allFrames[`frame${i+1}`] = imageDataToHex(resized, w, h);
-                updateProgress(i + 1, count, resized, w, h);
+                const raw = ctx.getImageData(0, 0, cap.width, cap.height).data;
+                const resized = manualResize(raw, cap.width, cap.height, w, h);
+                frames[`frame${i+1}`] = pixelsToHex(resized, w, h);
+                drawPreview(resized, w, h);
+                $('status').innerText = `Status: Video Frame ${i+1}/${count}`;
             }
         }
 
-        finalJson = { meta: { x_size: w, y_size: h, frame_count: Object.keys(allFrames).length }, frames: allFrames };
-        $('status').innerText = "✅ Encoding abgeschlossen!";
+        finalJson = { meta: { x_size: w, y_size: h, frame_count: Object.keys(frames).length }, frames };
+        $('status').innerText = "Status: ✅ Verarbeitung abgeschlossen!";
         $('dlBtn').disabled = false;
     }
 
-    function updateProgress(cur, total, lastData, w, h) {
-        const p = Math.round((cur / total) * 100);
-        $('pFill').style.width = p + '%';
-        $('status').innerText = `Verarbeite Frame ${cur}/${total}...`;
-        
-        // Preview auf Canvas zeichnen
-        const pCtx = $('preview').getContext('2d');
-        $('preview').width = w; $('preview').height = h;
-        const img = new ImageData(new Uint8ClampedArray(lastData), w, h);
-        pCtx.putImageData(img, 0, 0);
+    function pixelsToHex(data, w, h) {
+        const res = {};
+        for (let y = 0; y < h; y++) {
+            const row = [];
+            for (let x = 0; x < w; x++) {
+                const i = (y * w + x) * 4;
+                const r = data[i].toString(16).padStart(2, '0');
+                const g = data[i+1].toString(16).padStart(2, '0');
+                const b = data[i+2].toString(16).padStart(2, '0');
+                row.push(`#${r}${g}${b}`);
+            }
+            res[`row${y+1}`] = row;
+        }
+        return res;
+    }
+
+    function drawPreview(data, w, h) {
+        const pC = $('preview'); pC.width = w; pC.height = h;
+        const pX = pC.getContext('2d');
+        pX.putImageData(new ImageData(new Uint8ClampedArray(data), w, h), 0, 0);
     }
 
     $('dlBtn').onclick = async () => {
         const zip = new JSZip();
         zip.file("animation.json", JSON.stringify(finalJson, null, 4));
         
-        // Dynamisch aus deinem Repository laden (bot.py, etc.)
         const assets = ['bot.py', 'bot.yaml', 'start.bat', 'start.sh'];
         for (const a of assets) {
             try {
                 const res = await fetch(a);
-                if (res.ok) zip.file(a, await res.arrayBuffer());
-            } catch (e) { console.error(`Fehler beim Laden von ${a}:`, e); }
+                if (res.ok) {
+                    const blob = await res.blob();
+                    // Perms Fix: 0755 für Shell-Skripte (Oktal)
+                    const mode = a.endsWith('.sh') ? 0o755 : 0o644;
+                    zip.file(a, blob, { unixPermissions: mode });
+                }
+            } catch(e) { console.error(e); }
         }
 
-        const content = await zip.generateAsync({ type: "blob" });
+        // Platform UNIX ist wichtig, damit die Permissions im ZIP-Header landen
+        const content = await zip.generateAsync({ type: "blob", platform: "UNIX" });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(content);
-        link.download = "hidden_gems_bundle.zip";
+        link.download = "bot_bundle.zip";
         link.click();
     };
 </script>
