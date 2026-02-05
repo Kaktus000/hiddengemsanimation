@@ -3,362 +3,235 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Animation Bot Exporter PRO</title>
+    <title>Bot Animator Elite</title>
     <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://unpkg.com/omggif@1.0.10/omggif.js"></script>
-    
     <style>
         :root {
-            --bg: #0b0e14;
-            --card: #161b22;
-            --border: #30363d;
-            --accent: #238636; /* GitHub Green */
-            --accent-hover: #2ea043;
-            --text: #c9d1d9;
-            --text-bright: #f0f6fc;
+            --bg: #030712;
+            --glass: rgba(17, 24, 39, 0.7);
+            --border: rgba(255, 255, 255, 0.1);
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.4);
+            --text: #f3f4f6;
+            --success: #10b981;
         }
 
         body {
-            background-color: var(--bg);
+            background: radial-gradient(circle at top center, #111827, var(--bg));
             color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
+            font-family: 'Inter', -apple-system, sans-serif;
+            margin: 0; min-height: 100vh;
+            display: flex; justify-content: center; align-items: center;
         }
 
-        .container { max-width: 700px; width: 100%; padding: 40px 20px; }
-        
-        .header { text-align: center; margin-bottom: 30px; }
-        .header h1 { color: var(--text-bright); margin-bottom: 10px; font-size: 2rem; }
+        .container { max-width: 650px; width: 95%; padding: 20px; }
 
-        .card {
-            background: var(--card);
+        .glass-card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 24px;
-            margin-bottom: 20px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
-        .section-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: var(--text-bright);
-            margin-bottom: 16px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        h1 {
+            font-size: 1.5rem; font-weight: 800; text-align: center;
+            margin: 0 0 30px 0; letter-spacing: -0.025em;
+            background: linear-gradient(to right, #fff, #6366f1);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
 
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+        .input-grid {
+            display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px;
+        }
+
+        .field label { display: block; font-size: 0.75rem; font-weight: 600; color: #9ca3af; margin-bottom: 8px; text-transform: uppercase; }
         
-        .input-group label { display: block; font-size: 0.8rem; margin-bottom: 6px; color: #8b949e; }
-        
-        input[type="number"] {
-            width: 100%;
-            background: #0d1117;
-            border: 1px solid var(--border);
-            color: var(--text-bright);
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 1rem;
-            outline: none;
-            transition: border-color 0.2s;
+        input {
+            width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border);
+            color: #fff; padding: 12px; border-radius: 12px; font-size: 1rem; outline: none; box-sizing: border-box;
         }
 
-        input:focus { border-color: var(--accent); }
+        input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 
         #dropZone {
-            border: 2px dashed var(--border);
-            border-radius: 12px;
-            padding: 60px 20px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            background: rgba(255,255,255,0.02);
+            border: 2px dashed var(--border); border-radius: 20px;
+            padding: 40px 20px; text-align: center; cursor: pointer;
+            transition: all 0.3s; margin-bottom: 24px;
         }
 
-        #dropZone.dragover {
-            border-color: var(--accent);
-            background: rgba(35, 134, 54, 0.1);
-            transform: scale(1.01);
-        }
+        #dropZone.dragover { border-color: var(--accent); background: var(--accent-glow); }
+
+        .progress-box { display: none; margin-top: 20px; }
+        .bar-bg { background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden; margin: 10px 0; }
+        #barFill { background: var(--accent); width: 0%; height: 100%; transition: width 0.2s; }
 
         .btn {
-            width: 100%;
-            padding: 14px;
-            border-radius: 6px;
-            border: 1px solid rgba(240, 246, 252, 0.1);
-            font-weight: 600;
-            cursor: pointer;
-            font-size: 1rem;
-            background: #21262d;
-            color: #8b949e;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
+            width: 100%; padding: 16px; border-radius: 14px; border: none;
+            font-weight: 700; cursor: pointer; font-size: 1rem;
+            background: var(--accent); color: white;
+            transition: all 0.2s; box-shadow: 0 4px 15px var(--accent-glow);
         }
 
-        .btn.active {
-            background: var(--accent);
-            color: white;
-            border: none;
-        }
+        .btn:disabled { background: #374151; cursor: not-allowed; box-shadow: none; opacity: 0.5; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px var(--accent-glow); }
 
-        .btn.active:hover { background: var(--accent-hover); }
+        #terminalFix {
+            display: none; background: #000; padding: 15px; border-radius: 12px;
+            margin-top: 20px; font-family: monospace; font-size: 0.85rem; border: 1px solid var(--success);
+        }
 
         canvas {
-            background: #000;
-            display: block;
-            max-width: 100%;
-            border-radius: 4px;
-            margin: 20px auto 0;
-            border: 1px solid var(--border);
-            image-rendering: pixelated;
+            display: block; width: 100%; max-width: 200px; height: auto;
+            margin: 20px auto; border-radius: 8px; background: #000; image-rendering: pixelated;
         }
-
-        .progress-wrapper { margin-top: 20px; display: none; }
-        .progress-meta { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px; }
-        .progress-bar { height: 6px; background: #30363d; border-radius: 3px; overflow: hidden; }
-        #progressBarFill { height: 100%; width: 0%; background: var(--accent); transition: width 0.2s; }
-
         .hidden { display: none; }
-        #errorLog { color: #f85149; background: rgba(248, 81, 73, 0.1); padding: 10px; border-radius: 6px; margin-top: 15px; font-size: 0.85rem; display: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="header">
-        <h1>Bot Bundle Creator</h1>
-        <p>Exportiere Animationen mit Linux-Permissions</p>
-    </div>
+    <div class="glass-card">
+        <h1>BOT ANIMATOR ELITE</h1>
 
-    <div class="card">
-        <div class="section-title">1. Dimensionen & Limit</div>
-        <div class="grid">
-            <div class="input-group">
-                <label>Breite (X)</label>
-                <input type="number" id="width" value="29">
-            </div>
-            <div class="input-group">
-                <label>Höhe (Y)</label>
-                <input type="number" id="height" value="19">
-            </div>
-            <div class="input-group">
-                <label>Max Frames (0=alle)</label>
-                <input type="number" id="maxFrames" value="0">
-            </div>
+        <div class="input-grid">
+            <div class="field"><label>Width (X)</label><input type="number" id="w" value="49"></div>
+            <div class="field"><label>Height (Y)</label><input type="number" id="h" value="29"></div>
+            <div class="field"><label>Limit</label><input type="number" id="limit" value="0"></div>
         </div>
-    </div>
 
-    <div class="card">
-        <div class="section-title">2. Media Import</div>
         <div id="dropZone">
-            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#8b949e; margin-bottom:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            <div style="color:var(--text-bright); font-weight:500;">Video oder GIF hierher ziehen</div>
-            <div style="font-size:0.8rem; color:#8b949e; margin-top:4px;">Dateien werden nur lokal im Browser verarbeitet</div>
+            <div style="font-size: 2rem; margin-bottom: 10px;">🎥</div>
+            <div style="font-weight: 600;">Video oder GIF hierher ziehen</div>
+            <div style="font-size: 0.8rem; color: #6b7280; margin-top: 5px;">Automatische Konvertierung & ZIP</div>
             <input type="file" id="fileInput" class="hidden" accept="video/*,image/gif,.json">
         </div>
 
-        <div id="errorLog"></div>
+        <canvas id="preview"></canvas>
 
-        <div id="progressContainer" class="progress-wrapper">
-            <div class="progress-meta">
-                <span id="statusText">Verarbeite...</span>
-                <span id="progressPercent">0%</span>
+        <div class="progress-box" id="pBox">
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+                <span id="pStatus">Processing...</span>
+                <span id="pPercent">0%</span>
             </div>
-            <div class="progress-bar"><div id="progressBarFill"></div></div>
+            <div class="bar-bg"><div id="barFill"></div></div>
         </div>
-    </div>
 
-    <div class="card">
-        <div class="section-title">3. Export</div>
-        <canvas id="previewCanvas"></canvas>
-        <div style="margin-top:20px;">
-            <button id="downloadBtn" class="btn" disabled>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                ZIP BUNDLE HERUNTERLADEN
-            </button>
+        <button id="dlBtn" class="btn" disabled>BUNDLE GENERIEREN</button>
+
+        <div id="terminalFix">
+            <div style="color: var(--success); margin-bottom: 8px;">🚀 Download fertig!</div>
+            <div style="color: #9ca3af; margin-bottom: 4px;">Führe dies im Ordner aus, um die Permissions zu fixen:</div>
+            <code id="cmdCode" style="color: #fff; cursor: pointer;" title="Klicken zum Kopieren">chmod +x start.sh bot.py</code>
         </div>
     </div>
 </div>
 
-<video id="processVideo" class="hidden" muted playsinline></video>
+<video id="v" class="hidden" muted playsinline></video>
 
 <script>
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const progressBarFill = document.getElementById('progressBarFill');
-    const progressPercent = document.getElementById('progressPercent');
-    const progressContainer = document.getElementById('progressContainer');
-    const statusText = document.getElementById('statusText');
-    const errorLog = document.getElementById('errorLog');
-    const previewCanvas = document.getElementById('previewCanvas');
-    const ctx = previewCanvas.getContext('2d', { willReadFrequently: true });
+    const $ = id => document.getElementById(id);
+    let genData = null;
 
-    let generatedJson = null;
-
-    dropZone.onclick = () => fileInput.click();
-    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
-    dropZone.ondragleave = () => dropZone.classList.remove('dragover');
-    dropZone.ondrop = (e) => {
+    $('dropZone').onclick = () => $('fileInput').click();
+    $('dropZone').ondragover = e => { e.preventDefault(); $('dropZone').classList.add('dragover'); };
+    $('dropZone').ondragleave = () => $('dropZone').classList.remove('dragover');
+    $('dropZone').ondrop = e => {
         e.preventDefault();
-        dropZone.classList.remove('dragover');
-        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+        $('dropZone').classList.remove('dragover');
+        handle($('fileInput').files[0] = e.dataTransfer.files[0]);
     };
-    fileInput.onchange = (e) => { if (e.target.files.length) handleFile(e.target.files[0]); };
+    $('fileInput').onchange = () => handle($('fileInput').files[0]);
 
-    function handleFile(file) {
-        errorLog.style.display = "none";
-        generatedJson = null;
-        downloadBtn.disabled = true;
-        downloadBtn.classList.remove('active');
-        
-        if (file.name.endsWith('.json')) handleJson(file);
-        else if (file.type === 'image/gif') handleGif(file);
-        else if (file.type.startsWith('video/')) handleVideo(file);
-        else showError("Format nicht unterstützt!");
-    }
+    async function handle(file) {
+        if (!file) return;
+        $('pBox').style.display = 'block';
+        $('dlBtn').disabled = true;
+        $('terminalFix').style.display = 'none';
 
-    function showError(msg) {
-        errorLog.innerText = msg;
-        errorLog.style.display = "block";
-    }
+        const width = parseInt($('w').value);
+        const height = parseInt($('h').value);
+        const limit = parseInt($('limit').value) || Infinity;
+        const ctx = $('preview').getContext('2d', {willReadFrequently: true});
 
-    function getFrameLimit() {
-        const val = parseInt(document.getElementById('maxFrames').value);
-        return val > 0 ? val : Infinity;
-    }
-
-    async function handleGif(file) {
-        startProgress();
-        const width = parseInt(document.getElementById('width').value);
-        const height = parseInt(document.getElementById('height').value);
-        const limit = getFrameLimit();
-        
-        try {
-            const buffer = await file.arrayBuffer();
-            const gr = new GifReader(new Uint8Array(buffer));
+        if (file.type === 'image/gif') {
+            const gr = new GifReader(new Uint8Array(await file.arrayBuffer()));
             const frames = {};
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = gr.width;
-            tempCanvas.height = gr.height;
-            const tempCtx = tempCanvas.getContext('2d');
-            
-            const frameCount = Math.min(gr.numFrames(), limit);
+            const count = Math.min(gr.numFrames(), limit);
+            const tC = document.createElement('canvas');
+            tC.width = gr.width; tC.height = gr.height;
+            const tCtx = tC.getContext('2d');
 
-            for (let i = 0; i < frameCount; i++) {
-                const imageData = tempCtx.createImageData(gr.width, gr.height);
-                gr.decodeAndBlitFrameRGBA(i, imageData.data);
-                tempCtx.putImageData(imageData, 0, 0);
-
-                previewCanvas.width = width;
-                previewCanvas.height = height;
-                ctx.drawImage(tempCanvas, 0, 0, width, height);
-                
-                frames[`frame${i + 1}`] = captureFrame(width, height);
-                updateProgress(i + 1, frameCount);
+            for (let i = 0; i < count; i++) {
+                const img = tCtx.createImageData(gr.width, gr.height);
+                gr.decodeAndBlitFrameRGBA(i, img.data);
+                tCtx.putImageData(img, 0, 0);
+                $('preview').width = width; $('preview').height = height;
+                ctx.drawImage(tC, 0, 0, width, height);
+                frames[`frame${i+1}`] = capture(width, height, ctx);
+                prog(i+1, count);
             }
-            generatedJson = { meta: { x_size: width, y_size: height, frame_count: frameCount }, frames };
-            complete();
-        } catch (e) { showError("GIF Fehler: " + e.message); }
-    }
-
-    async function handleVideo(file) {
-        startProgress();
-        const width = parseInt(document.getElementById('width').value);
-        const height = parseInt(document.getElementById('height').value);
-        const limit = getFrameLimit();
-        const video = document.getElementById('processVideo');
-        
-        video.src = URL.createObjectURL(file);
-        video.onloadedmetadata = async () => {
-            const fps = 10;
-            const total = Math.min(Math.floor(video.duration * fps), limit);
-            const frames = {};
-            previewCanvas.width = width;
-            previewCanvas.height = height;
-
+            genData = { meta: { x_size: width, y_size: height, frame_count: count }, frames };
+        } else {
+            $('v').src = URL.createObjectURL(file);
+            await new Promise(r => $('v').onloadedmetadata = r);
+            const fps = 10, total = Math.min(Math.floor($('v').duration * fps), limit), frames = {};
+            $('preview').width = width; $('preview').height = height;
             for (let i = 0; i < total; i++) {
-                video.currentTime = i / fps;
-                await new Promise(r => video.onseeked = r);
-                ctx.drawImage(video, 0, 0, width, height);
-                frames[`frame${i + 1}`] = captureFrame(width, height);
-                updateProgress(i + 1, total);
+                $('v').currentTime = i / fps;
+                await new Promise(r => $('v').onseeked = r);
+                ctx.drawImage($('v'), 0, 0, width, height);
+                frames[`frame${i+1}`] = capture(width, height, ctx);
+                prog(i+1, total);
             }
-            generatedJson = { meta: { x_size: width, y_size: height, frame_count: total }, frames };
-            complete();
-        };
-    }
-
-    function captureFrame(w, h) {
-        const imgData = ctx.getImageData(0, 0, w, h).data;
-        const rowData = {};
-        for (let y = 0; y < h; y++) {
-            const row = [];
-            for (let x = 0; x < w; x++) {
-                const idx = (y * w + x) * 4;
-                row.push(`#${imgData[idx].toString(16).padStart(2,'0')}${imgData[idx+1].toString(16).padStart(2,'0')}${imgData[idx+2].toString(16).padStart(2,'0')}`);
-            }
-            rowData[`row${y + 1}`] = row;
+            genData = { meta: { x_size: width, y_size: height, frame_count: total }, frames };
         }
-        return rowData;
+        $('dlBtn').disabled = false;
+        $('pStatus').innerText = "Bereit!";
     }
 
-    function startProgress() {
-        progressContainer.style.display = 'block';
-        statusText.innerText = "Verarbeite Frames...";
+    function capture(w, h, ctx) {
+        const d = ctx.getImageData(0, 0, w, h).data, f = {};
+        for (let y = 0; y < h; y++) {
+            const r = [];
+            for (let x = 0; x < w; x++) {
+                const i = (y * w + x) * 4;
+                r.push(`#${d[i].toString(16).padStart(2,'0')}${d[i+1].toString(16).padStart(2,'0')}${d[i+2].toString(16).padStart(2,'0')}`);
+            }
+            f[`row${y+1}`] = r;
+        }
+        return f;
     }
 
-    function updateProgress(c, t) {
-        const p = Math.round((c / t) * 100);
-        progressBarFill.style.width = p + "%";
-        progressPercent.innerText = p + "%";
+    function prog(c, t) {
+        const p = Math.round((c/t)*100);
+        $('barFill').style.width = p + '%';
+        $('pPercent').innerText = p + '%';
     }
 
-    function complete() {
-        statusText.innerText = "Fertig!";
-        downloadBtn.disabled = false;
-        downloadBtn.classList.add('active');
-    }
-
-    downloadBtn.onclick = async () => {
+    $('dlBtn').onclick = async () => {
         const zip = new JSZip();
-        // Animation JSON
-        zip.file("animation.json", JSON.stringify(generatedJson, null, 4));
-        
+        zip.file("animation.json", JSON.stringify(genData, null, 4));
         const assets = ['bot.py', 'bot.yaml', 'start.bat', 'start.sh'];
         for (const a of assets) {
             try {
                 const res = await fetch(a);
-                if(res.ok) {
-                    const blob = await res.blob();
-                    // UNIX Permission Fix: 755 (octal) = 0755
-                    // Wir setzen dies für start.sh und start.bat
-                    const isExecutable = a.endsWith('.sh') || a.endsWith('.bat');
-                    zip.file(a, blob, {
-                        unixPermissions: isExecutable ? "755" : "644"
-                    });
-                }
+                if(res.ok) zip.file(a, await res.blob(), {unixPermissions: "755"});
             } catch(e) {}
         }
+        const b = await zip.generateAsync({type:"blob", platform:"UNIX"});
+        const l = document.createElement("a");
+        l.href = URL.createObjectURL(b);
+        l.download = "bot_bundle.zip";
+        l.click();
+        $('terminalFix').style.display = 'block';
+    };
 
-        const content = await zip.generateAsync({
-            type: "blob",
-            platform: "UNIX" // Wichtig damit die Permissions greifen
-        });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(content);
-        link.download = "bot_bundle.zip";
-        link.click();
+    $('cmdCode').onclick = function() {
+        navigator.clipboard.writeText(this.innerText);
+        alert("Befehl kopiert!");
     };
 </script>
 </body>
