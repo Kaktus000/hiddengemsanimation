@@ -129,12 +129,12 @@
             justify-content: center;
             align-items: center;
             min-height: 100px;
-            transition: all 0.5s ease;
+            transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         #preview { 
             max-width: 100%;
-            max-height: 500px;
+            max-height: 100%;
             image-rendering: pixelated; 
             display: block; 
         }
@@ -203,10 +203,10 @@
 <div class="container">
     <div class="card">
         <div style="text-align: center;">
-            <span class="badge">Advanced Media Hijack Tool</span>
+            <span class="badge">Hidden Gems Video Player</span>
         </div>
         <h1>Hidden Gems Video Player</h1>
-        <p class="subtitle">Zweckentfremdung des Hidden Gems Runners zur Video-Wiedergabe. Konvertiert jedes Medium in Pixel-JSON-Daten.</p>
+        <p class="subtitle">Zweckentfremdung des Hidden Gems Runners zur Video-Wiedergabe. Konvertiert jedes Video in einen ausführbaren Hidden Gems Bot.</p>
         
         <div class="controls-grid">
             <div class="input-group">
@@ -227,22 +227,22 @@
             <svg class="icon-upload" viewBox="0 0 24 24" stroke-width="1.5">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg><br>
-            <strong style="color: var(--text-bright); font-size: 1.1rem;">Media-File einwerfen</strong><br>
-            <span style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-top: 5px;">MP4, WebM, GIF werden unterstützt</span>
+            <strong style="color: var(--text-bright); font-size: 1.1rem;">Datei auswählen</strong><br>
+            <span style="font-size: 0.85rem; color: var(--text-muted); display: block; margin-top: 5px;">MP4, WebM oder GIF zur Bot-Erstellung</span>
         </div>
         <input type="file" id="fileInput" accept="video/*,image/gif" hidden>
     </div>
 
     <div class="card">
-        <label>Engine Output & Live Sync</label>
+        <label>Bot Engine & Live Preview</label>
         <div id="status" class="status-text">
             <div class="status-dot"></div>
-            <span>Warte auf Eingabe...</span>
+            <span>Warte auf Video...</span>
         </div>
         <div class="preview-container" id="previewContainer">
             <canvas id="preview"></canvas>
         </div>
-        <button id="dlBtn" class="btn" style="margin-top:30px;" disabled>Bundle Generieren & Herunterladen</button>
+        <button id="dlBtn" class="btn" style="margin-top:30px;" disabled>Bot Bundle (ZIP) herunterladen</button>
     </div>
 </div>
 
@@ -296,7 +296,7 @@
         const frames = {};
         
         $('dlBtn').disabled = true;
-        updateStatus("Initialisiere High-Performance Engine...", true);
+        updateStatus("Initialisiere Bot Engine...", true);
         
         if (file.type === 'image/gif') {
             try {
@@ -304,7 +304,6 @@
                 const gr = new GifReader(new Uint8Array(buffer));
                 const count = Math.min(gr.numFrames(), max);
                 
-                // Canvas-Größe für Vorschau anpassen
                 adjustPreviewSize(gr.width, gr.height);
                 
                 let fullFrameBuffer = new Uint8ClampedArray(gr.width * gr.height * 4);
@@ -314,11 +313,11 @@
                     const resized = manualResize(fullFrameBuffer, gr.width, gr.height, w, h);
                     frames[`frame${i+1}`] = pixelsToHex(resized, w, h);
                     drawPreview(resized, w, h);
-                    updateStatus(`RIP GIF: Frame ${i+1} / ${count}`, true);
+                    updateStatus(`Generiere Bot: Frame ${i+1} / ${count}`, true);
                     if(i % 5 === 0) await new Promise(r => setTimeout(r, 0));
                 }
             } catch(e) {
-                updateStatus("Fehler: GIF konnte nicht dekodiert werden.", false);
+                updateStatus("Fehler: Datei konnte nicht gelesen werden.", false);
                 return;
             }
         } else {
@@ -327,7 +326,6 @@
             v.src = url;
             await new Promise(r => v.onloadedmetadata = r);
             
-            // Canvas-Größe für Vorschau anpassen
             adjustPreviewSize(v.videoWidth, v.videoHeight);
             
             const fps = 10; 
@@ -345,7 +343,7 @@
                 const resized = manualResize(raw, cap.width, cap.height, w, h);
                 frames[`frame${i+1}`] = pixelsToHex(resized, w, h);
                 drawPreview(resized, w, h);
-                updateStatus(`HIJACK VIDEO: Frame ${i+1} / ${count}`, true);
+                updateStatus(`Generiere Bot: Frame ${i+1} / ${count}`, true);
                 await new Promise(r => setTimeout(r, 0));
             }
             URL.revokeObjectURL(url);
@@ -357,12 +355,12 @@
                 y_size: h, 
                 frame_count: Object.keys(frames).length,
                 generated_at: new Date().toISOString(),
-                tool: "Hidden Gems Video Player"
+                tool: "Hidden Gems Bot Generator"
             }, 
             frames 
         };
         
-        updateStatus(`✅ Hijack erfolgreich! ${Object.keys(frames).length} Frames im Speicher.`, true);
+        updateStatus(`✅ Bot-Konvertierung abgeschlossen! ${Object.keys(frames).length} Frames bereit.`, true);
         $('dlBtn').disabled = false;
     }
 
@@ -377,10 +375,17 @@
     function adjustPreviewSize(origW, origH) {
         const container = $('previewContainer');
         const aspect = origW / origH;
-        // Wir setzen die Höhe basierend auf der Breite des Containers und dem Seitenverhältnis
         const containerWidth = container.offsetWidth;
-        const targetHeight = containerWidth / aspect;
-        container.style.height = Math.min(targetHeight, 500) + 'px';
+        
+        // Berechne Zielhöhe basierend auf Containerbreite und Aspect Ratio
+        let targetHeight = containerWidth / aspect;
+        
+        // Begrenze auf 500px, passe Breite an falls Höhe zu groß
+        if (targetHeight > 500) {
+            targetHeight = 500;
+        }
+        
+        container.style.height = targetHeight + 'px';
     }
 
     function pixelsToHex(data, w, h) {
@@ -411,6 +416,7 @@
         const zip = new JSZip();
         zip.file("animation.json", JSON.stringify(finalJson, null, 2));
         
+        // Assets für den Bot (Dummy-Requests, falls sie lokal nicht existieren)
         const assets = ['bot.py', 'bot.yaml', 'start.bat', 'start.sh'];
         for (const a of assets) {
             try {
@@ -426,7 +432,7 @@
         const content = await zip.generateAsync({ type: "blob", platform: "UNIX" });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(content);
-        link.download = `hidden_gems_bundle_${Date.now()}.zip`;
+        link.download = `hidden_gems_bot_bundle_${Date.now()}.zip`;
         link.click();
     };
 </script>
