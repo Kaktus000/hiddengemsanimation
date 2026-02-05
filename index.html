@@ -3,85 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Animation Bot Exporter</title>
+    <title>Animation Bot Exporter PRO</title>
     <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
     <script src="https://unpkg.com/omggif@1.0.10/omggif.js"></script>
     
     <style>
         :root {
-            --bg: #0f172a; --card: #1e293b; --border: #334155;
-            --accent: #3b82f6; --text: #f8fafc; --text-muted: #94a3b8;
+            --bg: #0b0e14;
+            --card: #161b22;
+            --border: #30363d;
+            --accent: #238636; /* GitHub Green */
+            --accent-hover: #2ea043;
+            --text: #c9d1d9;
+            --text-bright: #f0f6fc;
         }
+
         body {
-            background-color: var(--bg); color: var(--text);
-            font-family: sans-serif; margin: 0; padding: 20px;
-            display: flex; justify-content: center;
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
         }
-        .container { max-width: 600px; width: 100%; }
+
+        .container { max-width: 700px; width: 100%; padding: 40px 20px; }
+        
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: var(--text-bright); margin-bottom: 10px; font-size: 2rem; }
+
         .card {
-            background: var(--card); border: 1px solid var(--border);
-            padding: 20px; border-radius: 12px; margin-bottom: 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
         }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-bright);
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; }
+        
+        .input-group label { display: block; font-size: 0.8rem; margin-bottom: 6px; color: #8b949e; }
+        
         input[type="number"] {
-            width: 100%; background: #0f172a; border: 1px solid var(--border);
-            color: white; padding: 8px; border-radius: 6px; margin-top: 5px;
+            width: 100%;
+            background: #0d1117;
+            border: 1px solid var(--border);
+            color: var(--text-bright);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+            transition: border-color 0.2s;
         }
+
+        input:focus { border-color: var(--accent); }
+
         #dropZone {
-            border: 2px dashed var(--border); border-radius: 12px;
-            padding: 40px; text-align: center; cursor: pointer;
-            transition: all 0.2s; background: rgba(255,255,255,0.02);
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background: rgba(255,255,255,0.02);
         }
-        #dropZone.dragover { border-color: var(--accent); background: rgba(59, 130, 246, 0.1); }
-        .progress-bar-bg { background: #0f172a; height: 10px; border-radius: 5px; overflow: hidden; margin-top: 10px; }
-        #progressBar { background: var(--accent); height: 100%; width: 0%; transition: width 0.1s; }
+
+        #dropZone.dragover {
+            border-color: var(--accent);
+            background: rgba(35, 134, 54, 0.1);
+            transform: scale(1.01);
+        }
+
         .btn {
-            width: 100%; padding: 15px; border-radius: 8px; border: none;
-            font-weight: bold; cursor: pointer; font-size: 1rem;
-            background: #334155; color: #64748b;
+            width: 100%;
+            padding: 14px;
+            border-radius: 6px;
+            border: 1px solid rgba(240, 246, 252, 0.1);
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 1rem;
+            background: #21262d;
+            color: #8b949e;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
         }
-        .btn.active { background: var(--accent); color: white; }
-        canvas { background: black; display: block; max-width: 100%; margin: 10px auto; image-rendering: pixelated; }
+
+        .btn.active {
+            background: var(--accent);
+            color: white;
+            border: none;
+        }
+
+        .btn.active:hover { background: var(--accent-hover); }
+
+        canvas {
+            background: #000;
+            display: block;
+            max-width: 100%;
+            border-radius: 4px;
+            margin: 20px auto 0;
+            border: 1px solid var(--border);
+            image-rendering: pixelated;
+        }
+
+        .progress-wrapper { margin-top: 20px; display: none; }
+        .progress-meta { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 8px; }
+        .progress-bar { height: 6px; background: #30363d; border-radius: 3px; overflow: hidden; }
+        #progressBarFill { height: 100%; width: 0%; background: var(--accent); transition: width 0.2s; }
+
         .hidden { display: none; }
-        #errorLog { color: #f87171; font-size: 0.8rem; margin-top: 10px; }
+        #errorLog { color: #f85149; background: rgba(248, 81, 73, 0.1); padding: 10px; border-radius: 6px; margin-top: 15px; font-size: 0.85rem; display: none; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <header style="text-align:center; margin-bottom:30px;">
-        <h1 style="color:var(--accent); margin:0;">Bot Exporter v2</h1>
-        <p style="color:var(--text-muted);">MP4, GIF oder JSON konvertieren</p>
-    </header>
+    <div class="header">
+        <h1>Bot Bundle Creator</h1>
+        <p>Exportiere Animationen mit Linux-Permissions</p>
+    </div>
 
     <div class="card">
+        <div class="section-title">1. Dimensionen & Limit</div>
         <div class="grid">
-            <div><label>Breite (X)</label><input type="number" id="width" value="29"></div>
-            <div><label>Höhe (Y)</label><input type="number" id="height" value="19"></div>
+            <div class="input-group">
+                <label>Breite (X)</label>
+                <input type="number" id="width" value="29">
+            </div>
+            <div class="input-group">
+                <label>Höhe (Y)</label>
+                <input type="number" id="height" value="19">
+            </div>
+            <div class="input-group">
+                <label>Max Frames (0=alle)</label>
+                <input type="number" id="maxFrames" value="0">
+            </div>
         </div>
     </div>
 
     <div class="card">
+        <div class="section-title">2. Media Import</div>
         <div id="dropZone">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent); margin-bottom:10px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            <div><strong>Datei hierher ziehen</strong></div>
-            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:5px;">Video, GIF oder animation.json</div>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#8b949e; margin-bottom:12px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            <div style="color:var(--text-bright); font-weight:500;">Video oder GIF hierher ziehen</div>
+            <div style="font-size:0.8rem; color:#8b949e; margin-top:4px;">Dateien werden nur lokal im Browser verarbeitet</div>
             <input type="file" id="fileInput" class="hidden" accept="video/*,image/gif,.json">
         </div>
+
         <div id="errorLog"></div>
-        
-        <div id="progressContainer" class="hidden">
-            <div style="display:flex; justify-content:space-between; margin-top:15px; font-size:0.9rem;">
+
+        <div id="progressContainer" class="progress-wrapper">
+            <div class="progress-meta">
                 <span id="statusText">Verarbeite...</span>
                 <span id="progressPercent">0%</span>
             </div>
-            <div class="progress-bar-bg"><div id="progressBar"></div></div>
+            <div class="progress-bar"><div id="progressBarFill"></div></div>
         </div>
     </div>
 
     <div class="card">
+        <div class="section-title">3. Export</div>
         <canvas id="previewCanvas"></canvas>
-        <button id="downloadBtn" class="btn" disabled>ZIP HERUNTERLADEN</button>
+        <div style="margin-top:20px;">
+            <button id="downloadBtn" class="btn" disabled>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                ZIP BUNDLE HERUNTERLADEN
+            </button>
+        </div>
     </div>
 </div>
 
@@ -91,7 +196,7 @@
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('fileInput');
     const downloadBtn = document.getElementById('downloadBtn');
-    const progressBar = document.getElementById('progressBar');
+    const progressBarFill = document.getElementById('progressBarFill');
     const progressPercent = document.getElementById('progressPercent');
     const progressContainer = document.getElementById('progressContainer');
     const statusText = document.getElementById('statusText');
@@ -101,7 +206,6 @@
 
     let generatedJson = null;
 
-    // --- Events ---
     dropZone.onclick = () => fileInput.click();
     dropZone.ondragover = (e) => { e.preventDefault(); dropZone.classList.add('dragover'); };
     dropZone.ondragleave = () => dropZone.classList.remove('dragover');
@@ -113,165 +217,146 @@
     fileInput.onchange = (e) => { if (e.target.files.length) handleFile(e.target.files[0]); };
 
     function handleFile(file) {
-        errorLog.innerText = "";
+        errorLog.style.display = "none";
         generatedJson = null;
         downloadBtn.disabled = true;
         downloadBtn.classList.remove('active');
         
-        if (file.name.endsWith('.json')) {
-            handleJson(file);
-        } else if (file.type === 'image/gif') {
-            handleGif(file);
-        } else if (file.type.startsWith('video/')) {
-            handleVideo(file);
-        } else {
-            errorLog.innerText = "Format nicht unterstützt: " + file.type;
-        }
+        if (file.name.endsWith('.json')) handleJson(file);
+        else if (file.type === 'image/gif') handleGif(file);
+        else if (file.type.startsWith('video/')) handleVideo(file);
+        else showError("Format nicht unterstützt!");
     }
 
-    // --- JSON Logic ---
-    function handleJson(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                generatedJson = JSON.parse(e.target.result);
-                renderPreview(generatedJson);
-                finishProcessing();
-            } catch (err) { errorLog.innerText = "JSON Fehler: " + err.message; }
-        };
-        reader.readAsText(file);
+    function showError(msg) {
+        errorLog.innerText = msg;
+        errorLog.style.display = "block";
     }
 
-    // --- GIF Logic ---
+    function getFrameLimit() {
+        const val = parseInt(document.getElementById('maxFrames').value);
+        return val > 0 ? val : Infinity;
+    }
+
     async function handleGif(file) {
-        showProgress();
+        startProgress();
         const width = parseInt(document.getElementById('width').value);
         const height = parseInt(document.getElementById('height').value);
+        const limit = getFrameLimit();
         
-        const buffer = await file.arrayBuffer();
-        const gifReader = new Uint8Array(buffer);
-        const gr = new GifReader(gifReader);
-        
-        const frames = {};
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = gr.width;
-        tempCanvas.height = gr.height;
-        const tempCtx = tempCanvas.getContext('2d');
-        
-        for (let i = 0; i < gr.numFrames(); i++) {
-            const frameInfo = gr.frameInfo(i);
-            const imageData = tempCtx.createImageData(gr.width, gr.height);
-            gr.decodeAndBlitFrameRGBA(i, imageData.data);
-            tempCtx.putImageData(imageData, 0, 0);
-
-            // Resize auf Zielgröße
-            previewCanvas.width = width;
-            previewCanvas.height = height;
-            ctx.drawImage(tempCanvas, 0, 0, width, height);
+        try {
+            const buffer = await file.arrayBuffer();
+            const gr = new GifReader(new Uint8Array(buffer));
+            const frames = {};
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = gr.width;
+            tempCanvas.height = gr.height;
+            const tempCtx = tempCanvas.getContext('2d');
             
-            frames[`frame${i + 1}`] = captureFrame(width, height);
-            updateProgress(i + 1, gr.numFrames());
-        }
+            const frameCount = Math.min(gr.numFrames(), limit);
 
-        generatedJson = { meta: { x_size: width, y_size: height, frame_count: gr.numFrames() }, frames };
-        finishProcessing();
+            for (let i = 0; i < frameCount; i++) {
+                const imageData = tempCtx.createImageData(gr.width, gr.height);
+                gr.decodeAndBlitFrameRGBA(i, imageData.data);
+                tempCtx.putImageData(imageData, 0, 0);
+
+                previewCanvas.width = width;
+                previewCanvas.height = height;
+                ctx.drawImage(tempCanvas, 0, 0, width, height);
+                
+                frames[`frame${i + 1}`] = captureFrame(width, height);
+                updateProgress(i + 1, frameCount);
+            }
+            generatedJson = { meta: { x_size: width, y_size: height, frame_count: frameCount }, frames };
+            complete();
+        } catch (e) { showError("GIF Fehler: " + e.message); }
     }
 
-    // --- Video Logic ---
     async function handleVideo(file) {
-        showProgress();
+        startProgress();
         const width = parseInt(document.getElementById('width').value);
         const height = parseInt(document.getElementById('height').value);
+        const limit = getFrameLimit();
         const video = document.getElementById('processVideo');
         
-        const url = URL.createObjectURL(file);
-        video.src = url;
-
+        video.src = URL.createObjectURL(file);
         video.onloadedmetadata = async () => {
             const fps = 10;
-            const totalFrames = Math.max(1, Math.floor(video.duration * fps));
+            const total = Math.min(Math.floor(video.duration * fps), limit);
             const frames = {};
             previewCanvas.width = width;
             previewCanvas.height = height;
 
-            for (let i = 0; i < totalFrames; i++) {
+            for (let i = 0; i < total; i++) {
                 video.currentTime = i / fps;
                 await new Promise(r => video.onseeked = r);
                 ctx.drawImage(video, 0, 0, width, height);
                 frames[`frame${i + 1}`] = captureFrame(width, height);
-                updateProgress(i + 1, totalFrames);
+                updateProgress(i + 1, total);
             }
-
-            generatedJson = { meta: { x_size: width, y_size: height, frame_count: totalFrames }, frames };
-            URL.revokeObjectURL(url);
-            finishProcessing();
+            generatedJson = { meta: { x_size: width, y_size: height, frame_count: total }, frames };
+            complete();
         };
     }
 
-    // --- Helpers ---
     function captureFrame(w, h) {
         const imgData = ctx.getImageData(0, 0, w, h).data;
-        const frameData = {};
+        const rowData = {};
         for (let y = 0; y < h; y++) {
             const row = [];
             for (let x = 0; x < w; x++) {
                 const idx = (y * w + x) * 4;
-                const r = imgData[idx].toString(16).padStart(2, '0');
-                const g = imgData[idx+1].toString(16).padStart(2, '0');
-                const b = imgData[idx+2].toString(16).padStart(2, '0');
-                row.push(`#${r}${g}${b}`);
+                row.push(`#${imgData[idx].toString(16).padStart(2,'0')}${imgData[idx+1].toString(16).padStart(2,'0')}${imgData[idx+2].toString(16).padStart(2,'0')}`);
             }
-            frameData[`row${y + 1}`] = row;
+            rowData[`row${y + 1}`] = row;
         }
-        return frameData;
+        return rowData;
     }
 
-    function showProgress() {
-        progressContainer.classList.remove('hidden');
-        statusText.innerText = "Initialisiere...";
+    function startProgress() {
+        progressContainer.style.display = 'block';
+        statusText.innerText = "Verarbeite Frames...";
     }
 
-    function updateProgress(curr, total) {
-        const pct = Math.round((curr / total) * 100);
-        progressBar.style.width = pct + "%";
-        progressPercent.innerText = pct + "%";
-        statusText.innerText = `Frame ${curr} / ${total}`;
+    function updateProgress(c, t) {
+        const p = Math.round((c / t) * 100);
+        progressBarFill.style.width = p + "%";
+        progressPercent.innerText = p + "%";
     }
 
-    function finishProcessing() {
-        statusText.innerText = "Verarbeitung fertig!";
+    function complete() {
+        statusText.innerText = "Fertig!";
         downloadBtn.disabled = false;
         downloadBtn.classList.add('active');
-        renderPreview(generatedJson);
     }
 
-    function renderPreview(data) {
-        const f1 = data.frames.frame1;
-        previewCanvas.width = data.meta.x_size;
-        previewCanvas.height = data.meta.y_size;
-        for(let y=0; y<data.meta.y_size; y++) {
-            f1[`row${y+1}`].forEach((color, x) => {
-                ctx.fillStyle = color; ctx.fillRect(x, y, 1, 1);
-            });
-        }
-    }
-
-    // --- ZIP Export ---
     downloadBtn.onclick = async () => {
         const zip = new JSZip();
+        // Animation JSON
         zip.file("animation.json", JSON.stringify(generatedJson, null, 4));
         
         const assets = ['bot.py', 'bot.yaml', 'start.bat', 'start.sh'];
         for (const a of assets) {
             try {
                 const res = await fetch(a);
-                if(res.ok) zip.file(a, await res.blob());
+                if(res.ok) {
+                    const blob = await res.blob();
+                    // UNIX Permission Fix: 755 (octal) = 0755
+                    // Wir setzen dies für start.sh und start.bat
+                    const isExecutable = a.endsWith('.sh') || a.endsWith('.bat');
+                    zip.file(a, blob, {
+                        unixPermissions: isExecutable ? "755" : "644"
+                    });
+                }
             } catch(e) {}
         }
 
-        const blob = await zip.generateAsync({type:"blob"});
+        const content = await zip.generateAsync({
+            type: "blob",
+            platform: "UNIX" // Wichtig damit die Permissions greifen
+        });
         const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
+        link.href = URL.createObjectURL(content);
         link.download = "bot_bundle.zip";
         link.click();
     };
