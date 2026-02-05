@@ -191,23 +191,42 @@
         else if(file.name.endsWith('.json')) handleJson(file);
     }
 
-    function capture(w, h, ctx) {
-        const imageData = ctx.getImageData(0, 0, w, h);
-        const d = imageData.data;
+    /**
+     * NEAREST NEIGHBOR ALGORITHMUS (Manual Resizing)
+     * Entspricht exakt PIL.NEAREST
+     */
+    function resizeNearest(srcData, srcW, srcH, dstW, dstH) {
+        const dstData = new Uint8ClampedArray(dstW * dstH * 4);
+        const xRatio = srcW / dstW;
+        const yRatio = srcH / dstH;
+
+        for (let y = 0; y < dstH; y++) {
+            for (let x = 0; x < dstW; x++) {
+                const px = Math.floor(x * xRatio);
+                const py = Math.floor(y * yRatio);
+                const srcPos = (py * srcW + px) * 4;
+                const dstPos = (y * dstW + x) * 4;
+
+                dstData[dstPos] = srcData[srcPos];
+                dstData[dstPos+1] = srcData[srcPos+1];
+                dstData[dstPos+2] = srcData[srcPos+2];
+                dstData[dstPos+3] = srcData[srcPos+3];
+            }
+        }
+        return dstData;
+    }
+
+    function processPixelData(data, w, h) {
         const frameData = {};
-        
         for (let y = 0; y < h; y++) {
             const row = [];
             for (let x = 0; x < w; x++) {
                 const i = (y * w + x) * 4;
-                const r = d[i], g = d[i+1], b = d[i+2], a = d[i+3];
+                const r = data[i], g = data[i+1], b = data[i+2], a = data[i+3];
+                // 1:1 Python Logic
                 if (a === 0) row.push("#000000");
                 else {
-                    const hex = "#" + 
-                        r.toString(16).padStart(2, '0') + 
-                        g.toString(16).padStart(2, '0') + 
-                        b.toString(16).padStart(2, '0');
-                    row.push(hex);
+                    row.push(`#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`);
                 }
             }
             frameData[`row${y + 1}`] = row;
@@ -220,24 +239,16 @@
         const w = parseInt($('width').value), h = parseInt($('height').value);
         const limit = parseInt($('maxFrames').value) || gr.numFrames();
         const frames = {};
-        const tC = document.createElement('canvas');
-        const tX = tC.getContext('2d');
-        tC.width = gr.width; tC.height = gr.height;
-        const pC = $('prev');
-        const pX = pC.getContext('2d', { willReadFrequently: true });
-        pC.width = w; pC.height = h;
-        pX.imageSmoothingEnabled = false;
-
+        
         const count = Math.min(gr.numFrames(), limit);
         for(let i=0; i<count; i++) {
-            const idata = tX.createImageData(gr.width, gr.height);
-            gr.decodeAndBlitFrameRGBA(i, idata.data);
-            tX.putImageData(idata, 0, 0);
-            pX.clearRect(0, 0, w, h);
-            pX.drawImage(tC, 0, 0, w, h);
-            frames[`frame${i+1}`] = capture(w, h, pX);
+            const rgba = new Uint8ClampedArray(gr.width * gr.height * 4);
+            gr.decodeAndBlitFrameRGBA(i, rgba);
+            
+            const resized = resizeNearest(rgba, gr.width, gr.height, w, h);
+            frames[`frame${i+1}`] = processPixelData(resized, w, h);
             upd(i+1, count);
-            if(i % 5 === 0) await new Promise(r => setTimeout(r, 0));
+            if(i % 10 === 0) await new Promise(r => setTimeout(r, 0));
         }
         finalJson = { meta: { x_size: w, y_size: h, frame_count: count }, frames };
         done();
@@ -260,9 +271,8 @@
         nativeC.width = v.videoWidth; nativeC.height = v.videoHeight;
 
         const pC = $('prev');
-        const pX = pC.getContext('2d', { willReadFrequently: true });
+        const pX = pC.getContext('2d');
         pC.width = w; pC.height = h;
-        pX.imageSmoothingEnabled = false;
 
         for(let i=0; i<total; i++) {
             v.currentTime = i / fps;
@@ -270,11 +280,21 @@
                 const onSeek = () => { v.removeEventListener('seeked', onSeek); r(); };
                 v.addEventListener('seeked', onSeek);
             });
-            await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+            
+            // Warte kurz, bis der Frame wirklich stabil im Speicher liegt
+            await new Promise(r => setTimeout(r, 40));
+
             nativeX.drawImage(v, 0, 0);
-            pX.clearRect(0, 0, w, h);
-            pX.drawImage(nativeC, 0, 0, w, h);
-            frames[`frame${i+1}`] = capture(w, h, pX);
+            const srcData = nativeX.getImageData(0, 0, nativeC.width, nativeC.height).data;
+            
+            // MANUELLES RESIZE (KEIN CANVAS BLURRING)
+            const resized = resizeNearest(srcData, nativeC.width, nativeC.height, w, h);
+            
+            // Preview zeichnen
+            const imgData = new ImageData(resized, w, h);
+            pX.putImageData(imgData, 0, 0);
+            
+            frames[`frame${i+1}`] = processPixelData(resized, w, h);
             upd(i+1, total);
         }
         finalJson = { meta: { x_size: w, y_size: h, frame_count: total }, frames };
@@ -299,7 +319,6 @@
         const zip = new JSZip();
         zip.file("animation.json", JSON.stringify(finalJson, null, 4));
 
-        // Dateien dynamisch aus dem Repo laden
         const assets = ['bot.py', 'bot.yaml', 'start.bat', 'start.sh'];
         for(const a of assets) {
             try {
@@ -308,9 +327,7 @@
                     const ab = await res.arrayBuffer();
                     zip.file(a, ab, { binary: true, unixPermissions: 0o777 });
                 }
-            } catch(e) {
-                console.warn(`Datei ${a} konnte nicht geladen werden.`);
-            }
+            } catch(e) {}
         }
 
         const blob = await zip.generateAsync({ type: "blob", platform: "UNIX" });
