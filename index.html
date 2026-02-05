@@ -54,6 +54,7 @@
             box-sizing: border-box;
             outline: none;
         }
+        input:focus { border-color: var(--accent); }
 
         .preview-video-container {
             width: 100%;
@@ -191,7 +192,7 @@
         else if(file.name.endsWith('.json')) handleJson(file);
     }
 
-    // Präzise Pixel-Extraktion 1:1 zur Python Lib
+    // Capture Funktion: Exakte 1:1 Kopie der Python Logik
     function capture(w, h, ctx) {
         const imageData = ctx.getImageData(0, 0, w, h);
         const d = imageData.data;
@@ -203,9 +204,11 @@
                 const i = (y * w + x) * 4;
                 const r = d[i], g = d[i+1], b = d[i+2], a = d[i+3];
                 
+                // Python: if a == 0: row.append("#000000")
                 if (a === 0) {
                     row.push("#000000");
                 } else {
+                    // Python: else: row.append(f"#{r:02x}{g:02x}{b:02x}")
                     const hex = "#" + 
                         r.toString(16).padStart(2, '0') + 
                         g.toString(16).padStart(2, '0') + 
@@ -224,26 +227,34 @@
         const limit = parseInt($('maxFrames').value) || gr.numFrames();
         const frames = {};
         
+        // Intermediate Canvas (Full Res)
         const tC = document.createElement('canvas');
         const tX = tC.getContext('2d');
         tC.width = gr.width; tC.height = gr.height;
 
+        // Target Canvas (Low Res)
         const pC = $('prev');
         const pX = pC.getContext('2d', { willReadFrequently: true });
         pC.width = w; pC.height = h;
+        // WICHTIG: Nearest Neighbor für harte Pixel (wie Python PIL.NEAREST)
         pX.imageSmoothingEnabled = false;
 
         const count = Math.min(gr.numFrames(), limit);
         for(let i=0; i<count; i++) {
+            // 1. Frame in Originalgröße rendern
             const idata = tX.createImageData(gr.width, gr.height);
             gr.decodeAndBlitFrameRGBA(i, idata.data);
             tX.putImageData(idata, 0, 0);
             
+            // 2. Auf Zielgröße skalieren (Nearest Neighbor)
             pX.clearRect(0, 0, w, h);
             pX.drawImage(tC, 0, 0, w, h);
             
             frames[`frame${i+1}`] = capture(w, h, pX);
             upd(i+1, count);
+            
+            // Kurzer Breath für die UI
+            if(i % 5 === 0) await new Promise(r => setTimeout(r, 0));
         }
         finalJson = { meta: { x_size: w, y_size: h, frame_count: count }, frames };
         done();
@@ -262,26 +273,43 @@
         const total = Math.min(Math.floor(v.duration * fps), limit);
         const frames = {};
         
+        // Intermediate Canvas (Originalgröße des Videos)
+        // Dies verhindert, dass der Browser beim drawImage direkt resampled
+        const nativeC = document.createElement('canvas');
+        const nativeX = nativeC.getContext('2d');
+        nativeC.width = v.videoWidth; 
+        nativeC.height = v.videoHeight;
+        nativeX.imageSmoothingEnabled = false;
+
+        // Final Canvas (Zielgröße)
         const pC = $('prev');
         const pX = pC.getContext('2d', { willReadFrequently: true });
         pC.width = w; pC.height = h;
-        pX.imageSmoothingEnabled = false;
+        pX.imageSmoothingEnabled = false; // PIL.NEAREST Imitation
 
         for(let i=0; i<total; i++) {
             v.currentTime = i / fps;
             
-            // Sync Fix: Warten auf seeked + einen kleinen Delay für GPU-Ready
+            // ANTI-GLITCH LOGIK:
+            // 1. Warte auf Seeked
             await new Promise(r => {
-                const ready = () => {
-                    v.removeEventListener('seeked', ready);
-                    // Kurzer Buffer gegen Glitches
-                    requestAnimationFrame(() => r());
+                const onSeek = () => {
+                    v.removeEventListener('seeked', onSeek);
+                    r();
                 };
-                v.addEventListener('seeked', ready);
+                v.addEventListener('seeked', onSeek);
             });
 
+            // 2. Warte auf GPU/Compositor (Double rAF)
+            // Das behebt das "Verschieben" des Bildes, da der Buffer sicher gefüllt ist
+            await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+            // 3. Erst in Native Resolution zeichnen (wie Image.fromarray(frame))
+            nativeX.drawImage(v, 0, 0);
+
+            // 4. Dann Resizen (wie .resize(..., NEAREST))
             pX.clearRect(0, 0, w, h);
-            pX.drawImage(v, 0, 0, w, h);
+            pX.drawImage(nativeC, 0, 0, w, h);
             
             frames[`frame${i+1}`] = capture(w, h, pX);
             upd(i+1, total);
